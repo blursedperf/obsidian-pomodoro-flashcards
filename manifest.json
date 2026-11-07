@@ -1,0 +1,10 @@
+{
+	"id": "pomodoro-flashcards",
+	"name": "Pomodoro Flashcards",
+	"version": "1.0.0",
+	"minAppVersion": "1.4.0",
+	"description": "Create and study Markdown flashcards using SM-2 spaced repetition with an integrated Pomodoro focus timer.",
+	"author": "blursedperf",
+	"authorUrl": "https://github.com/blursedperf",
+	"isDesktopOnly": false
+}

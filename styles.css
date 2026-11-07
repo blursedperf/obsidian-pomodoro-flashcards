@@ -1,0 +1,548 @@
+/* ==========================================================================
+   Pomodoro Flashcards — Obsidian Plugin Styles
+   ========================================================================== */
+
+.pomo-fc-view-root {
+	--pomo-phase-accent: var(--interactive-accent);
+	--pomo-rate-again: var(--color-red, #e05252);
+	--pomo-rate-hard: var(--color-orange, #d9822b);
+	--pomo-rate-good: var(--color-green, #2ea043);
+	--pomo-rate-easy: var(--color-blue, #388bfd);
+
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	max-width: 960px;
+	margin: 0 auto;
+	padding: 16px 20px;
+	gap: 16px;
+	box-sizing: border-box;
+}
+
+.pomo-fc-view-root[data-phase="short-break"] {
+	--pomo-phase-accent: var(--color-green, #2ea043);
+}
+
+.pomo-fc-view-root[data-phase="long-break"] {
+	--pomo-phase-accent: var(--color-blue, #388bfd);
+}
+
+/* --------------------------------------------------------------------------
+   1. Integrated Pomodoro Banner
+   -------------------------------------------------------------------------- */
+
+.pomo-fc-banner {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 16px;
+	padding: 14px 18px;
+	background-color: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-left: 4px solid var(--pomo-phase-accent);
+	border-radius: 10px;
+	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.pomo-fc-banner-left {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+}
+
+.pomo-fc-ring-wrapper {
+	width: 60px;
+	height: 60px;
+	flex-shrink: 0;
+}
+
+.pomo-fc-ring-svg {
+	width: 100%;
+	height: 100%;
+	transform: rotate(-90deg);
+}
+
+.pomo-fc-ring-bg {
+	fill: none;
+	stroke: var(--background-modifier-border);
+	stroke-width: 5;
+}
+
+.pomo-fc-ring-fg {
+	fill: none;
+	stroke: var(--pomo-phase-accent);
+	stroke-width: 5;
+	stroke-linecap: round;
+	transition: stroke-dashoffset 0.35s ease, stroke 0.3s ease;
+}
+
+.pomo-fc-time-info {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.pomo-fc-phase-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.pomo-fc-phase-badge {
+	font-size: 0.75rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var(--pomo-phase-accent);
+}
+
+.pomo-fc-dots {
+	font-size: 0.78rem;
+	color: var(--text-muted);
+	letter-spacing: 1px;
+}
+
+.pomo-fc-clock-digits {
+	font-size: 1.75rem;
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+	line-height: 1.1;
+	color: var(--text-normal);
+}
+
+.pomo-fc-banner-center {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 6px;
+}
+
+.pomo-fc-phase-pills {
+	display: flex;
+	gap: 4px;
+	background: var(--background-primary);
+	padding: 3px;
+	border-radius: 8px;
+	border: 1px solid var(--background-modifier-border);
+}
+
+.pomo-fc-phase-pill {
+	background: transparent;
+	border: none;
+	box-shadow: none;
+	font-size: 0.78rem;
+	padding: 4px 10px;
+	border-radius: 6px;
+	cursor: pointer;
+	color: var(--text-muted);
+	height: auto;
+}
+
+.pomo-fc-phase-pill:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+}
+
+.pomo-fc-phase-pill.is-active {
+	background: var(--pomo-phase-accent);
+	color: var(--text-on-accent);
+	font-weight: 600;
+}
+
+.pomo-fc-session-stats {
+	font-size: 0.78rem;
+	color: var(--text-muted);
+}
+
+.pomo-fc-banner-controls {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.pomo-fc-btn {
+	cursor: pointer;
+	padding: 6px 12px;
+	border-radius: 6px;
+	font-size: 0.85rem;
+	font-weight: 500;
+}
+
+.pomo-fc-btn-primary {
+	background-color: var(--pomo-phase-accent) !important;
+	color: var(--text-on-accent) !important;
+	border-color: transparent !important;
+}
+
+.pomo-fc-btn-primary:hover {
+	filter: brightness(1.08);
+}
+
+/* --------------------------------------------------------------------------
+   2. Deck & Study Mode Toolbar
+   -------------------------------------------------------------------------- */
+
+.pomo-fc-toolbar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 10px;
+	padding: 8px 12px;
+	background-color: var(--background-secondary-alt, var(--background-secondary));
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+}
+
+.pomo-fc-toolbar-group {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.pomo-fc-toolbar-label {
+	font-size: 0.85rem;
+	font-weight: 600;
+	color: var(--text-muted);
+}
+
+/* --------------------------------------------------------------------------
+   3. Flashcard Stage & Card Component
+   -------------------------------------------------------------------------- */
+
+.pomo-fc-stage {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	min-height: 320px;
+}
+
+.pomo-fc-card {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	background-color: var(--background-primary-alt, var(--background-secondary));
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 12px;
+	padding: 20px 24px;
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+	gap: 16px;
+}
+
+.pomo-fc-card-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 8px;
+	padding-bottom: 12px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.pomo-fc-card-meta-left,
+.pomo-fc-card-meta-right {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+
+.pomo-fc-deck-badge {
+	background-color: var(--background-modifier-hover);
+	color: var(--text-accent);
+	font-size: 0.76rem;
+	font-weight: 600;
+	padding: 3px 9px;
+	border-radius: 999px;
+	border: 1px solid var(--background-modifier-border);
+}
+
+.pomo-fc-queue-pos,
+.pomo-fc-srs-pill {
+	font-size: 0.78rem;
+	color: var(--text-muted);
+}
+
+.pomo-fc-source-link {
+	background: transparent;
+	border: 1px solid var(--background-modifier-border);
+	color: var(--text-muted);
+	font-size: 0.75rem;
+	padding: 2px 8px;
+	border-radius: 5px;
+	cursor: pointer;
+	height: auto;
+}
+
+.pomo-fc-source-link:hover {
+	color: var(--text-normal);
+	border-color: var(--interactive-accent);
+}
+
+.pomo-fc-card-section {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	padding: 12px 8px;
+}
+
+.pomo-fc-answer-section {
+	border-top: 2px dashed var(--background-modifier-border);
+	padding-top: 18px;
+	animation: pomoFcFadeIn 0.2s ease-out;
+}
+
+@keyframes pomoFcFadeIn {
+	from {
+		opacity: 0;
+		transform: translateY(4px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.pomo-fc-side-label {
+	font-size: 0.7rem;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	color: var(--text-faint);
+	margin-bottom: 8px;
+}
+
+.pomo-fc-markdown-body {
+	font-size: 1.15rem;
+	line-height: 1.6;
+	color: var(--text-normal);
+	overflow-wrap: break-word;
+}
+
+.pomo-fc-markdown-body p:first-child {
+	margin-top: 0;
+}
+
+.pomo-fc-markdown-body p:last-child {
+	margin-bottom: 0;
+}
+
+.pomo-fc-card-footer {
+	margin-top: auto;
+	padding-top: 14px;
+	border-top: 1px solid var(--background-modifier-border);
+	display: flex;
+	justify-content: center;
+}
+
+.pomo-fc-show-answer-btn {
+	width: 100%;
+	max-width: 340px;
+	padding: 10px 20px;
+	font-size: 0.95rem;
+	font-weight: 600;
+	height: auto;
+}
+
+/* --------------------------------------------------------------------------
+   4. SM-2 Rating Buttons
+   -------------------------------------------------------------------------- */
+
+.pomo-fc-rating-grid {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: 10px;
+}
+
+.pomo-fc-rate-btn {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 3px;
+	padding: 8px 10px;
+	height: auto;
+	border-radius: 8px;
+	cursor: pointer;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	transition: transform 0.1s ease, border-color 0.15s ease;
+}
+
+.pomo-fc-rate-btn:hover {
+	transform: translateY(-1px);
+}
+
+.pomo-fc-rate-interval {
+	font-size: 0.74rem;
+	font-weight: 600;
+	color: var(--text-muted);
+}
+
+.pomo-fc-rate-label-row {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+}
+
+.pomo-fc-rate-label {
+	font-size: 0.9rem;
+	font-weight: 600;
+}
+
+.pomo-fc-rate-key {
+	font-size: 0.72rem;
+	color: var(--text-faint);
+}
+
+.pomo-fc-rate-again {
+	border-bottom: 3px solid var(--pomo-rate-again);
+}
+.pomo-fc-rate-again .pomo-fc-rate-label {
+	color: var(--pomo-rate-again);
+}
+
+.pomo-fc-rate-hard {
+	border-bottom: 3px solid var(--pomo-rate-hard);
+}
+.pomo-fc-rate-hard .pomo-fc-rate-label {
+	color: var(--pomo-rate-hard);
+}
+
+.pomo-fc-rate-good {
+	border-bottom: 3px solid var(--pomo-rate-good);
+}
+.pomo-fc-rate-good .pomo-fc-rate-label {
+	color: var(--pomo-rate-good);
+}
+
+.pomo-fc-rate-easy {
+	border-bottom: 3px solid var(--pomo-rate-easy);
+}
+.pomo-fc-rate-easy .pomo-fc-rate-label {
+	color: var(--pomo-rate-easy);
+}
+
+/* --------------------------------------------------------------------------
+   5. Empty State & Break Lock Screen
+   -------------------------------------------------------------------------- */
+
+.pomo-fc-empty-card,
+.pomo-fc-break-card {
+	align-items: center;
+	justify-content: center;
+	text-align: center;
+	padding: 36px 24px;
+}
+
+.pomo-fc-empty-icon,
+.pomo-fc-break-icon {
+	font-size: 2.8rem;
+	line-height: 1;
+	margin-bottom: 4px;
+}
+
+.pomo-fc-break-desc {
+	max-width: 460px;
+	color: var(--text-muted);
+	margin: 4px 0 8px;
+}
+
+.pomo-fc-break-countdown {
+	font-size: 2.5rem;
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+	color: var(--pomo-phase-accent);
+	margin: 6px 0 12px;
+}
+
+.pomo-fc-empty-actions {
+	display: flex;
+	gap: 10px;
+	flex-wrap: wrap;
+	justify-content: center;
+	margin-top: 8px;
+}
+
+/* --------------------------------------------------------------------------
+   6. Create Flashcard Modal & Status Bar
+   -------------------------------------------------------------------------- */
+
+.pomo-fc-modal .pomo-fc-field-group {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin-top: 12px;
+}
+
+.pomo-fc-modal .pomo-fc-field-label {
+	font-size: 0.85rem;
+	font-weight: 600;
+	color: var(--text-normal);
+}
+
+.pomo-fc-modal .pomo-fc-textarea {
+	width: 100%;
+	resize: vertical;
+	font-family: var(--font-text);
+	padding: 8px 10px;
+	border-radius: 6px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	color: var(--text-normal);
+}
+
+.pomo-fc-modal-footer {
+	display: flex;
+	justify-content: flex-end;
+	gap: 10px;
+	margin-top: 18px;
+}
+
+.pomo-fc-statusbar {
+	cursor: pointer;
+	font-variant-numeric: tabular-nums;
+}
+
+.pomo-fc-question-section.is-tappable {
+	cursor: pointer;
+}
+
+/* iOS & iPadOS Mobile / Touch Ergonomics */
+.is-mobile .pomo-fc-view-root {
+	padding: 12px 12px calc(16px + env(safe-area-inset-bottom, 0px)) 12px;
+	overflow-y: auto;
+	-webkit-overflow-scrolling: touch;
+}
+
+.is-mobile .pomo-fc-btn,
+.is-mobile .pomo-fc-rate-btn,
+.is-mobile .pomo-fc-phase-pill {
+	min-height: 44px;
+}
+
+.is-mobile .pomo-fc-show-answer-btn {
+	min-height: 48px;
+	font-size: 1rem;
+}
+
+@media (max-width: 600px) {
+	.pomo-fc-banner {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.pomo-fc-banner-controls {
+		justify-content: stretch;
+	}
+
+	.pomo-fc-banner-controls .pomo-fc-btn {
+		flex: 1;
+	}
+
+	.pomo-fc-rating-grid {
+		grid-template-columns: repeat(2, 1fr);
+	}
+}

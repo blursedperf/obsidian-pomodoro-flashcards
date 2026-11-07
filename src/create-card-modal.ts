@@ -19,6 +19,8 @@ export class CreateFlashcardModal extends Modal {
 	private targetPath: string;
 	private onCardCreated?: () => void;
 	private resizeHandler: (() => void) | null = null;
+	private observer: MutationObserver | null = null;
+	private touchMoveHandler: ((e: TouchEvent) => void) | null = null;
 
 	constructor(
 		app: App,
@@ -51,19 +53,37 @@ export class CreateFlashcardModal extends Modal {
 
 		// 1. Pinned Modal Header Bar (remains visible even with mobile keyboard up)
 		const headerBar = contentEl.createDiv({ cls: "pomo-fc-modal-header" });
-		headerBar.createEl("h3", {
-			text: "Create flashcard",
-			cls: "pomo-fc-modal-title",
-		});
-
-		const headerActions = headerBar.createDiv({
-			cls: "pomo-fc-modal-header-actions",
-		});
 		let headerSaveBtn: HTMLButtonElement | null = null;
+
 		if (Platform.isMobile) {
-			headerSaveBtn = headerActions.createEl("button", {
+			const headerCancelBtn = headerBar.createEl("button", {
+				text: "Cancel",
+				cls: "pomo-fc-header-cancel-btn",
+				attr: { type: "button", title: "Cancel and close" },
+			});
+			headerCancelBtn.addEventListener("click", () => {
+				this.close();
+			});
+
+			headerBar.createEl("h3", {
+				text: "Create flashcard",
+				cls: "pomo-fc-modal-title",
+			});
+
+			headerSaveBtn = headerBar.createEl("button", {
 				text: "Save",
 				cls: "mod-cta pomo-fc-header-save-btn",
+				attr: { type: "button", title: "Save flashcard" },
+			});
+
+			const closeBtn = this.modalEl.querySelector<HTMLElement>(".modal-close-button");
+			if (closeBtn) {
+				closeBtn.style.display = "none";
+			}
+		} else {
+			headerBar.createEl("h3", {
+				text: "Create flashcard",
+				cls: "pomo-fc-modal-title",
 			});
 		}
 
@@ -101,9 +121,9 @@ export class CreateFlashcardModal extends Modal {
 			isMetaExpanded = !isMetaExpanded;
 			metaBox.toggleClass("is-collapsed", !isMetaExpanded);
 			metaChevron.setText(isMetaExpanded ? "▴" : "▾");
-			if (isMetaExpanded && Platform.isMobile) {
+			if (Platform.isMobile) {
 				window.setTimeout(() => {
-					this.updateMobileViewport();
+					this.updateMobileLayout();
 				}, 60);
 			}
 		});
@@ -226,6 +246,22 @@ export class CreateFlashcardModal extends Modal {
 		// 6. Action Buttons in Scroll Body
 		const footer = scrollBody.createDiv({ cls: "pomo-fc-modal-footer" });
 
+		const saveCloseBtn = footer.createEl("button", {
+			text: "Save flashcard",
+			cls: "mod-cta pomo-fc-modal-primary-btn",
+		});
+		saveCloseBtn.addEventListener("click", async () => {
+			await this.saveCard(false, qTextarea, aTextarea);
+		});
+
+		const addAnotherBtn = footer.createEl("button", {
+			text: Platform.isMobile ? "Save & add another" : "Save and add another",
+			cls: "pomo-fc-modal-secondary-btn",
+		});
+		addAnotherBtn.addEventListener("click", async () => {
+			await this.saveCard(true, qTextarea, aTextarea);
+		});
+
 		if (Platform.isMobile) {
 			const cancelBtn = footer.createEl("button", {
 				text: "Cancel",
@@ -236,45 +272,69 @@ export class CreateFlashcardModal extends Modal {
 			});
 		}
 
-		const addAnotherBtn = footer.createEl("button", {
-			text: Platform.isMobile ? "Save & add another" : "Save and add another",
-			cls: "pomo-fc-modal-secondary-btn",
-		});
-		addAnotherBtn.addEventListener("click", async () => {
-			await this.saveCard(true, qTextarea, aTextarea);
-		});
-
-		const saveCloseBtn = footer.createEl("button", {
-			text: "Save flashcard",
-			cls: "mod-cta pomo-fc-modal-primary-btn",
-		});
-		saveCloseBtn.addEventListener("click", async () => {
-			await this.saveCard(false, qTextarea, aTextarea);
-		});
-
 		// 7. Auto-scroll on focus helpers so active field is never obscured by keyboard
 		const ensureVisibleOnFocus = (el: HTMLElement) => {
 			el.addEventListener("focus", () => {
 				if (!Platform.isMobile) return;
+				this.updateMobileLayout();
+				this.scrollToElement(scrollBody, el);
 				window.setTimeout(() => {
-					this.updateMobileViewport();
-					el.scrollIntoView({ behavior: "smooth", block: "center" });
-				}, 260);
+					this.updateMobileLayout();
+					this.scrollToElement(scrollBody, el);
+				}, 120);
+				window.setTimeout(() => {
+					this.updateMobileLayout();
+					this.scrollToElement(scrollBody, el);
+				}, 320);
 			});
 		};
 		ensureVisibleOnFocus(qTextarea);
 		ensureVisibleOnFocus(aTextarea);
 		if (deckInputEl) ensureVisibleOnFocus(deckInputEl);
 
-		// 8. Mobile visualViewport listeners to track virtual keyboard height changes
+		// 8. Mobile layout and keyboard height tracking
 		if (Platform.isMobile) {
-			this.updateMobileViewport();
-			this.resizeHandler = () => this.updateMobileViewport();
+			this.updateMobileLayout();
+
+			this.resizeHandler = () => {
+				this.updateMobileLayout();
+			};
+			window.addEventListener("resize", this.resizeHandler);
 			if (typeof window !== "undefined" && window.visualViewport) {
 				window.visualViewport.addEventListener("resize", this.resizeHandler);
-				window.visualViewport.addEventListener("scroll", this.resizeHandler);
 			}
-			window.addEventListener("resize", this.resizeHandler);
+
+			// Watch for --keyboard-height changes set on documentElement or body by Obsidian/Capacitor
+			if (
+				typeof MutationObserver !== "undefined" &&
+				typeof document !== "undefined"
+			) {
+				this.observer = new MutationObserver(() => {
+					this.updateMobileLayout();
+				});
+				if (document.documentElement) {
+					this.observer.observe(document.documentElement, {
+						attributes: true,
+						attributeFilter: ["style", "class"],
+					});
+				}
+				if (document.body) {
+					this.observer.observe(document.body, {
+						attributes: true,
+						attributeFilter: ["style", "class"],
+					});
+				}
+			}
+
+			// Prevent page-level rubber-band dragging when touching outside scrollBody
+			this.touchMoveHandler = (e: TouchEvent) => {
+				if (!scrollBody.contains(e.target as Node)) {
+					e.preventDefault();
+				}
+			};
+			this.containerEl.addEventListener("touchmove", this.touchMoveHandler, {
+				passive: false,
+			});
 		}
 
 		// Focus question or answer input on open
@@ -285,27 +345,98 @@ export class CreateFlashcardModal extends Modal {
 				qTextarea.focus();
 			}
 			if (Platform.isMobile) {
-				this.updateMobileViewport();
+				this.updateMobileLayout();
+				const target = this.questionText ? aTextarea : qTextarea;
+				this.scrollToElement(scrollBody, target);
 			}
 		}, 80);
 	}
 
-	private updateMobileViewport(): void {
-		if (!Platform.isMobile) return;
-		const vv = typeof window !== "undefined" ? window.visualViewport : null;
-		const vh = vv ? vv.height : window.innerHeight;
-		const vt = vv ? vv.offsetTop : 0;
+	private getKeyboardHeight(): number {
+		if (!Platform.isMobile) return 0;
 
-		// Constrain modal dialog height to visible area above keyboard
-		const targetHeight = Math.max(200, Math.floor(vh - 12));
-		this.modalEl.style.maxHeight = `${targetHeight}px`;
-		this.modalEl.style.height = `${targetHeight}px`;
-
-		if (vv && vt > 0) {
-			this.modalEl.style.transform = `translateY(${vt}px)`;
-		} else {
-			this.modalEl.style.transform = "";
+		// 1. Check Obsidian's CSS variable --keyboard-height (set by Capacitor Keyboard plugin)
+		if (typeof document !== "undefined") {
+			const docVal = getComputedStyle(document.documentElement)
+				.getPropertyValue("--keyboard-height")
+				.trim();
+			const bodyVal = getComputedStyle(document.body)
+				.getPropertyValue("--keyboard-height")
+				.trim();
+			const rawVal = docVal || bodyVal;
+			if (rawVal) {
+				const parsed = parseFloat(rawVal);
+				if (!isNaN(parsed) && parsed > 0) {
+					return parsed;
+				}
+			}
 		}
+
+		// 2. Check visualViewport diff vs window.innerHeight (for Android or engines that resize visualViewport)
+		if (typeof window !== "undefined" && window.visualViewport) {
+			const diff = window.innerHeight - window.visualViewport.height;
+			if (diff > 80) {
+				return diff;
+			}
+		}
+
+		return 0;
+	}
+
+	private updateMobileLayout(): void {
+		if (!Platform.isMobile) return;
+
+		const kbHeight = this.getKeyboardHeight();
+
+		// Keep root page scrolled to 0 so WebKit never pans the window
+		if (typeof window !== "undefined") {
+			if (window.scrollY !== 0 || window.scrollX !== 0) {
+				window.scrollTo(0, 0);
+			}
+		}
+		if (typeof document !== "undefined" && document.body) {
+			if (document.body.scrollTop !== 0) {
+				document.body.scrollTop = 0;
+			}
+		}
+
+		if (this.containerEl) {
+			if (kbHeight > 0) {
+				this.containerEl.style.bottom = `${kbHeight}px`;
+				this.containerEl.style.height = `calc(100vh - ${kbHeight}px)`;
+				this.containerEl.style.maxHeight = `calc(100vh - ${kbHeight}px)`;
+			} else {
+				this.containerEl.style.bottom = "0px";
+				this.containerEl.style.height = "100vh";
+				this.containerEl.style.maxHeight = "100vh";
+			}
+		}
+
+		if (this.modalEl) {
+			this.modalEl.style.transform = "none";
+			this.modalEl.style.height = "100%";
+			this.modalEl.style.maxHeight = "100%";
+		}
+	}
+
+	private scrollToElement(
+		scrollContainer: HTMLElement,
+		targetEl: HTMLElement
+	): void {
+		if (!scrollContainer || !targetEl) return;
+
+		const containerRect = scrollContainer.getBoundingClientRect();
+		const targetRect = targetEl.getBoundingClientRect();
+
+		const relativeOffset = targetRect.top - containerRect.top;
+		const currentScroll = scrollContainer.scrollTop;
+
+		const targetScrollTop = currentScroll + relativeOffset - 12;
+
+		scrollContainer.scrollTo({
+			top: Math.max(0, targetScrollTop),
+			behavior: "smooth",
+		});
 	}
 
 	onClose(): void {
@@ -315,14 +446,21 @@ export class CreateFlashcardModal extends Modal {
 					"resize",
 					this.resizeHandler
 				);
-				window.visualViewport.removeEventListener(
-					"scroll",
-					this.resizeHandler
-				);
 			}
 			window.removeEventListener("resize", this.resizeHandler);
 			this.resizeHandler = null;
 		}
+
+		if (this.observer) {
+			this.observer.disconnect();
+			this.observer = null;
+		}
+
+		if (this.touchMoveHandler && this.containerEl) {
+			this.containerEl.removeEventListener("touchmove", this.touchMoveHandler);
+			this.touchMoveHandler = null;
+		}
+
 		this.contentEl.empty();
 	}
 

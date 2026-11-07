@@ -48,10 +48,9 @@ Optimize recall with the proven SuperMemo-2 spaced repetition algorithm:
 - **Status bar indicator** (desktop & tablet): Real-time countdown and due card count (`🍅 25:00 · 🗂️ 12 due`). Left-click opens the study view; right-click toggles timer start/pause.
 - **Synthesized audio chimes**: Pure Web Audio API chimes signal phase transitions with zero external audio downloads or network access.
 
-### 4. Mobile Gestures & Ergonomics
-- **Touch swipe gestures**: Swipe right for Good, swipe left for Again, and tap or swipe up to reveal the answer.
-- **Visual swipe feedback**: Dynamic, real-time directional rating badges respond as you drag with physics-based spring return.
-- **Tactile haptics**: Subtle vibrations on card flips, swipe thresholds, SM-2 ratings, and timer transitions.
+### 4. Mobile Ergonomics
+- **Tappable card stage**: Tap the card or the large primary action button to reveal the answer with zero sidebar gesture interference.
+- **Tactile haptics**: Subtle vibrations on card flips, SM-2 ratings, and timer transitions.
 - **Space-saving compact timer**: Collapsible timer bar on mobile devices to preserve maximum vertical space for reading flashcards.
 - **Safe-area & virtual keyboard aware**: 16px inputs prevent unwanted iOS auto-zooming, scrollable modal forms, and 44px+ touch targets throughout.
 

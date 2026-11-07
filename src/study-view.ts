@@ -592,16 +592,6 @@ export class FlashcardStudyView extends ItemView {
 		const card = this.queue[this.currentIndex];
 		const cardEl = this.cardStageEl.createDiv({ cls: "pomo-fc-card" });
 
-		// Swipe indicator badges for mobile drag rating
-		const againBadge = cardEl.createDiv({
-			cls: "pomo-fc-swipe-badge pomo-fc-swipe-again",
-			text: "AGAIN",
-		});
-		const goodBadge = cardEl.createDiv({
-			cls: "pomo-fc-swipe-badge pomo-fc-swipe-good",
-			text: "GOOD",
-		});
-
 		// Card Header: Deck badge, Queue position, SRS metadata, Source Note link
 		const cardHeader = cardEl.createDiv({ cls: "pomo-fc-card-header" });
 		const headerLeft = cardHeader.createDiv({ cls: "pomo-fc-card-meta-left" });
@@ -681,7 +671,7 @@ export class FlashcardStudyView extends ItemView {
 			const showAnswerBtn = revealFooter.createEl("button", {
 				cls: "pomo-fc-btn pomo-fc-btn-primary pomo-fc-show-answer-btn",
 				text: Platform.isMobile
-					? "Show answer (tap or swipe up)"
+					? "Show answer (tap)"
 					: "Show answer (space)",
 			});
 			showAnswerBtn.addEventListener("click", () => {
@@ -714,13 +704,6 @@ export class FlashcardStudyView extends ItemView {
 			const ratingFooter = cardEl.createDiv({
 				cls: "pomo-fc-card-footer pomo-fc-rating-footer",
 			});
-
-			if (Platform.isMobile && this.plugin.settings.swipeGestures) {
-				const swipeHint = ratingFooter.createDiv({
-					cls: "pomo-fc-swipe-hint",
-				});
-				swipeHint.textContent = "👈 Swipe left for Again · Swipe right for Good 👉";
-			}
 
 			const ratingGrid = ratingFooter.createDiv({
 				cls: "pomo-fc-rating-grid",
@@ -762,163 +745,6 @@ export class FlashcardStudyView extends ItemView {
 				});
 			}
 		}
-
-		// Attach Touch & Swipe Gestures
-		this.attachTouchGestures(cardEl, card, againBadge, goodBadge);
-	}
-
-	private attachTouchGestures(
-		cardEl: HTMLElement,
-		card: Flashcard,
-		againBadge: HTMLElement,
-		goodBadge: HTMLElement
-	): void {
-		let startX = 0;
-		let startY = 0;
-		let startTime = 0;
-		let gestureMode: "horizontal" | "vertical" | null = null;
-		let hasVibratedThreshold = false;
-		const SWIPE_THRESHOLD = 70;
-
-		const onTouchStart = (e: TouchEvent) => {
-			const target = e.target as HTMLElement | null;
-			if (target && target.closest("button, a, select, input, textarea")) {
-				return;
-			}
-			this.plugin.pomodoro.unlockAudio();
-			if (e.touches.length !== 1) return;
-
-			startX = e.touches[0].clientX;
-			startY = e.touches[0].clientY;
-			startTime = Date.now();
-			gestureMode = null;
-			hasVibratedThreshold = false;
-			cardEl.style.transition = "none";
-		};
-
-		const onTouchMove = (e: TouchEvent) => {
-			if (e.touches.length !== 1) return;
-			const currentX = e.touches[0].clientX;
-			const currentY = e.touches[0].clientY;
-			const dx = currentX - startX;
-			const dy = currentY - startY;
-
-			if (gestureMode === null) {
-				if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 8) {
-					gestureMode = "vertical";
-					return;
-				}
-				if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 8) {
-					if (!this.plugin.settings.swipeGestures) return;
-					gestureMode = "horizontal";
-				}
-			}
-
-			if (gestureMode === "horizontal" && this.isAnswerShown) {
-				if (e.cancelable) e.preventDefault();
-				const rot = dx * 0.04;
-				cardEl.style.transform = `translateX(${dx}px) rotate(${rot}deg)`;
-
-				if (dx < 0) {
-					const ratio = Math.min(1, Math.abs(dx) / SWIPE_THRESHOLD);
-					againBadge.style.opacity = ratio.toFixed(2);
-					goodBadge.style.opacity = "0";
-					if (Math.abs(dx) >= SWIPE_THRESHOLD && !hasVibratedThreshold) {
-						if (this.plugin.settings.enableHaptics) {
-							PomodoroTimer.triggerHaptic(12);
-						}
-						hasVibratedThreshold = true;
-					} else if (Math.abs(dx) < SWIPE_THRESHOLD) {
-						hasVibratedThreshold = false;
-					}
-				} else {
-					const ratio = Math.min(1, Math.abs(dx) / SWIPE_THRESHOLD);
-					goodBadge.style.opacity = ratio.toFixed(2);
-					againBadge.style.opacity = "0";
-					if (Math.abs(dx) >= SWIPE_THRESHOLD && !hasVibratedThreshold) {
-						if (this.plugin.settings.enableHaptics) {
-							PomodoroTimer.triggerHaptic(12);
-						}
-						hasVibratedThreshold = true;
-					} else if (Math.abs(dx) < SWIPE_THRESHOLD) {
-						hasVibratedThreshold = false;
-					}
-				}
-			}
-		};
-
-		const onTouchEnd = (e: TouchEvent) => {
-			if (e.changedTouches.length === 0) return;
-			const endX = e.changedTouches[0].clientX;
-			const endY = e.changedTouches[0].clientY;
-			const dx = endX - startX;
-			const dy = endY - startY;
-			const elapsed = Date.now() - startTime;
-
-			if (gestureMode === "horizontal" && this.isAnswerShown) {
-				cardEl.style.transition =
-					"transform 0.22s ease-out, opacity 0.22s ease-out";
-				if (dx <= -SWIPE_THRESHOLD) {
-					// Swiped Left -> AGAIN
-					cardEl.style.transform = "translateX(-120%) rotate(-14deg)";
-					cardEl.style.opacity = "0";
-					againBadge.style.opacity = "1";
-					void this.submitRating(card, "again");
-					return;
-				} else if (dx >= SWIPE_THRESHOLD) {
-					// Swiped Right -> GOOD
-					cardEl.style.transform = "translateX(120%) rotate(14deg)";
-					cardEl.style.opacity = "0";
-					goodBadge.style.opacity = "1";
-					void this.submitRating(card, "good");
-					return;
-				} else {
-					// Snap back
-					cardEl.style.transform = "translateX(0) rotate(0deg)";
-					againBadge.style.opacity = "0";
-					goodBadge.style.opacity = "0";
-					return;
-				}
-			}
-
-			// Swipe UP on question card to flip
-			if (
-				!this.isAnswerShown &&
-				dy < -50 &&
-				Math.abs(dx) < 40 &&
-				elapsed < 500
-			) {
-				if (this.plugin.settings.enableHaptics) {
-					PomodoroTimer.triggerHaptic(10);
-				}
-				this.revealAnswer();
-				return;
-			}
-
-			// Clean tap on card stage to flip when answer is not yet shown
-			if (!this.isAnswerShown && Math.abs(dx) < 10 && Math.abs(dy) < 10) {
-				const target = e.target as HTMLElement | null;
-				if (!target?.closest("button, a, select, input, textarea")) {
-					if (this.plugin.settings.enableHaptics) {
-						PomodoroTimer.triggerHaptic(10);
-					}
-					this.revealAnswer();
-				}
-			}
-		};
-
-		const onTouchCancel = () => {
-			cardEl.style.transition = "transform 0.2s ease";
-			cardEl.style.transform = "translateX(0) rotate(0deg)";
-			againBadge.style.opacity = "0";
-			goodBadge.style.opacity = "0";
-			gestureMode = null;
-		};
-
-		cardEl.addEventListener("touchstart", onTouchStart, { passive: true });
-		cardEl.addEventListener("touchmove", onTouchMove, { passive: false });
-		cardEl.addEventListener("touchend", onTouchEnd, { passive: true });
-		cardEl.addEventListener("touchcancel", onTouchCancel, { passive: true });
 	}
 
 	private revealAnswer(): void {

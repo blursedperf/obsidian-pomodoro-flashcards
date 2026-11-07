@@ -135,7 +135,6 @@ const pair = "a :: b";
 // 4. Test Mobile Settings & Pomodoro Haptic Safety
 {
 	assert.equal(DEFAULT_SETTINGS.enableHaptics, true);
-	assert.equal(DEFAULT_SETTINGS.swipeGestures, true);
 	assert.equal(DEFAULT_SETTINGS.compactMobileTimer, true);
 }
 

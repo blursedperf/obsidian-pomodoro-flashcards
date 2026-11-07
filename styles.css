@@ -296,38 +296,6 @@
 	box-sizing: border-box;
 }
 
-.pomo-fc-swipe-badge {
-	position: absolute;
-	top: 20px;
-	padding: 6px 14px;
-	border-radius: 8px;
-	font-size: 1.15rem;
-	font-weight: 800;
-	letter-spacing: 0.1em;
-	opacity: 0;
-	pointer-events: none;
-	z-index: 10;
-	box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
-	transition: opacity 0.08s ease;
-	user-select: none;
-}
-
-.pomo-fc-swipe-again {
-	right: 18px;
-	color: var(--pomo-rate-again, #e05252);
-	border: 3px solid var(--pomo-rate-again, #e05252);
-	background: var(--background-primary);
-	transform: rotate(12deg);
-}
-
-.pomo-fc-swipe-good {
-	left: 18px;
-	color: var(--pomo-rate-good, #2ea043);
-	border: 3px solid var(--pomo-rate-good, #2ea043);
-	background: var(--background-primary);
-	transform: rotate(-12deg);
-}
-
 .pomo-fc-card-header {
 	display: flex;
 	align-items: center;
@@ -465,15 +433,6 @@
 	font-weight: 600;
 	height: auto;
 	min-height: 44px;
-}
-
-.pomo-fc-swipe-hint {
-	text-align: center;
-	font-size: 0.74rem;
-	color: var(--text-faint);
-	margin-bottom: 8px;
-	user-select: none;
-	pointer-events: none;
 }
 
 /* --------------------------------------------------------------------------

@@ -138,34 +138,17 @@ export class PomodoroFlashcardsSettingTab extends PluginSettingTab {
 					})
 			);
 
-		containerEl.createEl("h2", { text: "Mobile experience and gestures" });
+		containerEl.createEl("h2", { text: "Mobile experience" });
 
 		new Setting(containerEl)
 			.setName("Enable mobile haptic feedback")
-			.setDesc(
-				"Vibrate gently on card flip, swipe threshold, ratings, and timer completion"
-			)
+			.setDesc("Vibrate gently on card flip, ratings, and timer completion")
 			.addToggle((toggle) =>
 				toggle
 					.setValue(this.plugin.settings.enableHaptics)
 					.onChange(async (value) => {
 						this.plugin.settings.enableHaptics = value;
 						await this.plugin.savePluginData();
-					})
-			);
-
-		new Setting(containerEl)
-			.setName("Card swipe gestures on mobile")
-			.setDesc(
-				"Swipe right for Good, swipe left for Again, and swipe up to reveal answer"
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.swipeGestures)
-					.onChange(async (value) => {
-						this.plugin.settings.swipeGestures = value;
-						await this.plugin.savePluginData();
-						this.plugin.refreshStudyViews();
 					})
 			);
 

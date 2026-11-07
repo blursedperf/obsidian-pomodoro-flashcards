@@ -82,8 +82,6 @@ export interface PluginSettings {
 	flashcardTag: string;
 	/** Enable haptic feedback (vibrations) on supported mobile devices */
 	enableHaptics: boolean;
-	/** Enable touch swipe gestures to rate and flip flashcards on mobile */
-	swipeGestures: boolean;
 	/** Use compact space-saving Pomodoro banner on mobile */
 	compactMobileTimer: boolean;
 }
@@ -110,7 +108,6 @@ export const DEFAULT_SETTINGS: PluginSettings = {
 	multilineSeparator: "?",
 	flashcardTag: "#flashcard",
 	enableHaptics: true,
-	swipeGestures: true,
 	compactMobileTimer: true,
 };
 

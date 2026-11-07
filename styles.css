@@ -603,11 +603,115 @@
    6. Create Flashcard Modal & Status Bar
    -------------------------------------------------------------------------- */
 
+.pomo-fc-modal {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	padding: 0;
+	overflow: hidden;
+}
+
+.pomo-fc-modal-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 12px 18px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	flex-shrink: 0;
+	background-color: var(--background-secondary-alt, var(--background-secondary));
+}
+
+.pomo-fc-modal-title {
+	margin: 0;
+	font-size: 1.12rem;
+	font-weight: 600;
+}
+
+.pomo-fc-modal-header-actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.pomo-fc-header-save-btn {
+	padding: 4px 14px;
+	font-size: 0.85rem;
+	font-weight: 600;
+	height: auto;
+	min-height: 32px;
+	border-radius: 6px;
+}
+
+.pomo-fc-modal-scroll-body {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+	-webkit-overflow-scrolling: touch;
+	overscroll-behavior: contain;
+	padding: 14px 18px 24px 18px;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	box-sizing: border-box;
+}
+
+.pomo-fc-modal-meta-box {
+	background: var(--background-secondary-alt, var(--background-secondary));
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	overflow: hidden;
+	transition: all 0.15s ease;
+	flex-shrink: 0;
+}
+
+.pomo-fc-modal-meta-toggle {
+	width: 100%;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	background: transparent;
+	border: none;
+	box-shadow: none;
+	padding: 8px 12px;
+	cursor: pointer;
+	font-size: 0.82rem;
+	color: var(--text-muted);
+	height: auto;
+}
+
+.pomo-fc-modal-meta-toggle:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+}
+
+.pomo-fc-modal-meta-summary {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-weight: 500;
+	text-align: left;
+}
+
+.pomo-fc-modal-meta-chevron {
+	font-size: 0.75rem;
+	margin-left: 8px;
+	flex-shrink: 0;
+}
+
+.pomo-fc-modal-meta-drawer {
+	padding: 0 10px 10px 10px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.pomo-fc-modal-meta-box.is-collapsed .pomo-fc-modal-meta-drawer {
+	display: none;
+}
+
 .pomo-fc-modal .pomo-fc-field-group {
 	display: flex;
 	flex-direction: column;
 	gap: 6px;
-	margin-top: 12px;
+	flex-shrink: 0;
 }
 
 .pomo-fc-modal .pomo-fc-field-label {
@@ -625,13 +729,17 @@
 	border: 1px solid var(--background-modifier-border);
 	background: var(--background-primary);
 	color: var(--text-normal);
+	box-sizing: border-box;
 }
 
 .pomo-fc-modal-footer {
 	display: flex;
 	justify-content: flex-end;
 	gap: 10px;
-	margin-top: 18px;
+	margin-top: 10px;
+	padding-top: 12px;
+	border-top: 1px solid var(--background-modifier-border);
+	flex-shrink: 0;
 }
 
 .pomo-fc-statusbar {
@@ -686,15 +794,47 @@
 	font-size: 0.95rem;
 }
 
+/* Modal mobile ergonomics & keyboard resilience */
+.is-mobile.pomo-fc-modal-container,
+.is-mobile .modal-container.pomo-fc-modal-container,
+.is-phone.pomo-fc-modal-container,
+.is-phone .modal-container.pomo-fc-modal-container {
+	align-items: flex-start !important;
+	justify-content: center !important;
+	padding-top: max(var(--safe-area-inset-top, 0px), 8px) !important;
+	padding-bottom: 0 !important;
+	padding-left: 0 !important;
+	padding-right: 0 !important;
+	overflow: hidden !important;
+}
+
+.is-mobile .modal.pomo-fc-modal-dialog,
+.is-phone .modal.pomo-fc-modal-dialog {
+	width: 100vw !important;
+	max-width: 100vw !important;
+	margin: 0 !important;
+	border-radius: 0 0 16px 16px !important;
+	display: flex !important;
+	flex-direction: column !important;
+	overflow: hidden !important;
+	padding: 0 !important;
+	box-shadow: 0 10px 32px rgba(0, 0, 0, 0.4) !important;
+	background-color: var(--modal-background) !important;
+	border-top: none !important;
+}
+
 .is-mobile .pomo-fc-modal {
-	padding: 12px 14px;
-	max-height: 88vh;
-	overflow-y: auto;
+	height: 100% !important;
+	padding: 0 !important;
+}
+
+.is-mobile .pomo-fc-modal-scroll-body {
+	padding: 10px 14px 180px 14px !important; /* Generous bottom clearance ensuring inputs scroll above keyboard */
 }
 
 .is-mobile .pomo-fc-modal .pomo-fc-textarea {
 	font-size: 16px !important; /* Prevents unwanted iOS Safari viewport auto-zoom */
-	min-height: 72px;
+	min-height: 64px;
 	line-height: 1.4;
 }
 

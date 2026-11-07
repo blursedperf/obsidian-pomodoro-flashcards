@@ -18,6 +18,7 @@ export class CreateFlashcardModal extends Modal {
 	private deckName: string;
 	private targetPath: string;
 	private onCardCreated?: () => void;
+	private resizeHandler: (() => void) | null = null;
 
 	constructor(
 		app: App,
@@ -41,14 +42,78 @@ export class CreateFlashcardModal extends Modal {
 	}
 
 	onOpen(): void {
+		this.containerEl.addClass("pomo-fc-modal-container");
+		this.modalEl.addClass("pomo-fc-modal-dialog");
+
 		const { contentEl } = this;
 		contentEl.empty();
 		contentEl.addClass("pomo-fc-modal");
 
-		contentEl.createEl("h2", { text: "Create flashcard" });
+		// 1. Pinned Modal Header Bar (remains visible even with mobile keyboard up)
+		const headerBar = contentEl.createDiv({ cls: "pomo-fc-modal-header" });
+		headerBar.createEl("h3", {
+			text: "Create flashcard",
+			cls: "pomo-fc-modal-title",
+		});
 
-		// Target Note Path
-		new Setting(contentEl)
+		const headerActions = headerBar.createDiv({
+			cls: "pomo-fc-modal-header-actions",
+		});
+		let headerSaveBtn: HTMLButtonElement | null = null;
+		if (Platform.isMobile) {
+			headerSaveBtn = headerActions.createEl("button", {
+				text: "Save",
+				cls: "mod-cta pomo-fc-header-save-btn",
+			});
+		}
+
+		// 2. Scrollable Form Body with dedicated keyboard scroll clearance
+		const scrollBody = contentEl.createDiv({
+			cls: "pomo-fc-modal-scroll-body",
+		});
+
+		// 3. Collapsible Target Note & Deck Meta Box
+		const metaBox = scrollBody.createDiv({
+			cls: "pomo-fc-modal-meta-box",
+		});
+		let isMetaExpanded = !Platform.isMobile;
+		if (!isMetaExpanded) {
+			metaBox.addClass("is-collapsed");
+		}
+
+		const getTargetFileName = () =>
+			this.targetPath.split("/").pop() || this.targetPath;
+
+		const metaToggleBtn = metaBox.createEl("button", {
+			cls: "pomo-fc-modal-meta-toggle",
+			attr: { type: "button", title: "Toggle deck and target file options" },
+		});
+		const metaSummary = metaToggleBtn.createSpan({
+			cls: "pomo-fc-modal-meta-summary",
+			text: `📁 Deck: ${this.deckName} · 📄 ${getTargetFileName()}`,
+		});
+		const metaChevron = metaToggleBtn.createSpan({
+			cls: "pomo-fc-modal-meta-chevron",
+			text: isMetaExpanded ? "▴" : "▾",
+		});
+
+		metaToggleBtn.addEventListener("click", () => {
+			isMetaExpanded = !isMetaExpanded;
+			metaBox.toggleClass("is-collapsed", !isMetaExpanded);
+			metaChevron.setText(isMetaExpanded ? "▴" : "▾");
+			if (isMetaExpanded && Platform.isMobile) {
+				window.setTimeout(() => {
+					this.updateMobileViewport();
+				}, 60);
+			}
+		});
+
+		const metaDrawer = metaBox.createDiv({
+			cls: "pomo-fc-modal-meta-drawer",
+		});
+
+		// Target Note Path Setting
+		new Setting(metaDrawer)
 			.setName("Target note")
 			.setDesc("Markdown file where the flashcard will be appended")
 			.addText((text) => {
@@ -57,13 +122,16 @@ export class CreateFlashcardModal extends Modal {
 					.setValue(this.targetPath)
 					.onChange((val) => {
 						this.targetPath = val.trim();
+						metaSummary.setText(
+							`📁 Deck: ${this.deckName} · 📄 ${getTargetFileName()}`
+						);
 					});
 			});
 
-		// Deck Name
+		// Deck Name Setting
 		const existingDecks = this.plugin.getDecks();
 		let deckInputEl: HTMLInputElement | null = null;
-		const deckSetting = new Setting(contentEl)
+		const deckSetting = new Setting(metaDrawer)
 			.setName("Deck")
 			.setDesc("Choose an existing deck or type a new deck name");
 
@@ -80,6 +148,9 @@ export class CreateFlashcardModal extends Modal {
 					if (deckInputEl) {
 						deckInputEl.value = val;
 					}
+					metaSummary.setText(
+						`📁 Deck: ${this.deckName} · 📄 ${getTargetFileName()}`
+					);
 				});
 			});
 		}
@@ -91,11 +162,14 @@ export class CreateFlashcardModal extends Modal {
 				.setValue(this.deckName)
 				.onChange((val) => {
 					this.deckName = val.trim() || this.plugin.settings.defaultDeck;
+					metaSummary.setText(
+						`📁 Deck: ${this.deckName} · 📄 ${getTargetFileName()}`
+					);
 				});
 		});
 
-		// Question Field
-		const qContainer = contentEl.createDiv({ cls: "pomo-fc-field-group" });
+		// 4. Question Field
+		const qContainer = scrollBody.createDiv({ cls: "pomo-fc-field-group" });
 		qContainer.createEl("label", {
 			text: "Question (front)",
 			cls: "pomo-fc-field-label",
@@ -113,8 +187,8 @@ export class CreateFlashcardModal extends Modal {
 			this.questionText = qTextarea.value;
 		});
 
-		// Answer Field
-		const aContainer = contentEl.createDiv({ cls: "pomo-fc-field-group" });
+		// 5. Answer Field
+		const aContainer = scrollBody.createDiv({ cls: "pomo-fc-field-group" });
 		aContainer.createEl("label", {
 			text: "Answer (back)",
 			cls: "pomo-fc-field-label",
@@ -142,8 +216,15 @@ export class CreateFlashcardModal extends Modal {
 		qTextarea.addEventListener("keydown", handleKeyDown);
 		aTextarea.addEventListener("keydown", handleKeyDown);
 
-		// Action Buttons
-		const footer = contentEl.createDiv({ cls: "pomo-fc-modal-footer" });
+		// Wire mobile header quick-save
+		if (headerSaveBtn) {
+			headerSaveBtn.addEventListener("click", async () => {
+				await this.saveCard(false, qTextarea, aTextarea);
+			});
+		}
+
+		// 6. Action Buttons in Scroll Body
+		const footer = scrollBody.createDiv({ cls: "pomo-fc-modal-footer" });
 
 		if (Platform.isMobile) {
 			const cancelBtn = footer.createEl("button", {
@@ -171,6 +252,31 @@ export class CreateFlashcardModal extends Modal {
 			await this.saveCard(false, qTextarea, aTextarea);
 		});
 
+		// 7. Auto-scroll on focus helpers so active field is never obscured by keyboard
+		const ensureVisibleOnFocus = (el: HTMLElement) => {
+			el.addEventListener("focus", () => {
+				if (!Platform.isMobile) return;
+				window.setTimeout(() => {
+					this.updateMobileViewport();
+					el.scrollIntoView({ behavior: "smooth", block: "center" });
+				}, 260);
+			});
+		};
+		ensureVisibleOnFocus(qTextarea);
+		ensureVisibleOnFocus(aTextarea);
+		if (deckInputEl) ensureVisibleOnFocus(deckInputEl);
+
+		// 8. Mobile visualViewport listeners to track virtual keyboard height changes
+		if (Platform.isMobile) {
+			this.updateMobileViewport();
+			this.resizeHandler = () => this.updateMobileViewport();
+			if (typeof window !== "undefined" && window.visualViewport) {
+				window.visualViewport.addEventListener("resize", this.resizeHandler);
+				window.visualViewport.addEventListener("scroll", this.resizeHandler);
+			}
+			window.addEventListener("resize", this.resizeHandler);
+		}
+
 		// Focus question or answer input on open
 		window.setTimeout(() => {
 			if (this.questionText) {
@@ -178,7 +284,46 @@ export class CreateFlashcardModal extends Modal {
 			} else {
 				qTextarea.focus();
 			}
-		}, 50);
+			if (Platform.isMobile) {
+				this.updateMobileViewport();
+			}
+		}, 80);
+	}
+
+	private updateMobileViewport(): void {
+		if (!Platform.isMobile) return;
+		const vv = typeof window !== "undefined" ? window.visualViewport : null;
+		const vh = vv ? vv.height : window.innerHeight;
+		const vt = vv ? vv.offsetTop : 0;
+
+		// Constrain modal dialog height to visible area above keyboard
+		const targetHeight = Math.max(200, Math.floor(vh - 12));
+		this.modalEl.style.maxHeight = `${targetHeight}px`;
+		this.modalEl.style.height = `${targetHeight}px`;
+
+		if (vv && vt > 0) {
+			this.modalEl.style.transform = `translateY(${vt}px)`;
+		} else {
+			this.modalEl.style.transform = "";
+		}
+	}
+
+	onClose(): void {
+		if (this.resizeHandler) {
+			if (typeof window !== "undefined" && window.visualViewport) {
+				window.visualViewport.removeEventListener(
+					"resize",
+					this.resizeHandler
+				);
+				window.visualViewport.removeEventListener(
+					"scroll",
+					this.resizeHandler
+				);
+			}
+			window.removeEventListener("resize", this.resizeHandler);
+			this.resizeHandler = null;
+		}
+		this.contentEl.empty();
 	}
 
 	private async saveCard(
@@ -264,9 +409,5 @@ export class CreateFlashcardModal extends Modal {
 			const message = err instanceof Error ? err.message : String(err);
 			new Notice(`Failed to save flashcard: ${message}`);
 		}
-	}
-
-	onClose(): void {
-		this.contentEl.empty();
 	}
 }

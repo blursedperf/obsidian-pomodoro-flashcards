@@ -132,4 +132,11 @@ const pair = "a :: b";
 	assert.equal(multi, "\nLine 1\nLine 2\n?\nAnswer Line\n");
 }
 
+// 4. Test Mobile Settings & Pomodoro Haptic Safety
+{
+	assert.equal(DEFAULT_SETTINGS.enableHaptics, true);
+	assert.equal(DEFAULT_SETTINGS.swipeGestures, true);
+	assert.equal(DEFAULT_SETTINGS.compactMobileTimer, true);
+}
+
 console.log("All SRS & Parser tests passed!");

@@ -138,6 +138,52 @@ export class PomodoroFlashcardsSettingTab extends PluginSettingTab {
 					})
 			);
 
+		containerEl.createEl("h2", { text: "Mobile experience and gestures" });
+
+		new Setting(containerEl)
+			.setName("Enable mobile haptic feedback")
+			.setDesc(
+				"Vibrate gently on card flip, swipe threshold, ratings, and timer completion"
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.enableHaptics)
+					.onChange(async (value) => {
+						this.plugin.settings.enableHaptics = value;
+						await this.plugin.savePluginData();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Card swipe gestures on mobile")
+			.setDesc(
+				"Swipe right for Good, swipe left for Again, and swipe up to reveal answer"
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.swipeGestures)
+					.onChange(async (value) => {
+						this.plugin.settings.swipeGestures = value;
+						await this.plugin.savePluginData();
+						this.plugin.refreshStudyViews();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Compact timer on mobile")
+			.setDesc(
+				"Collapse the Pomodoro banner into a space-saving bar on mobile to maximize card viewing area"
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.compactMobileTimer)
+					.onChange(async (value) => {
+						this.plugin.settings.compactMobileTimer = value;
+						await this.plugin.savePluginData();
+						this.plugin.refreshStudyViews();
+					})
+			);
+
 		containerEl.createEl("h2", { text: "Flashcard syntax and storage" });
 
 		new Setting(containerEl)

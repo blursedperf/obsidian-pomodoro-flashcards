@@ -80,6 +80,12 @@ export interface PluginSettings {
 	multilineSeparator: string;
 	/** Tag used to identify flashcard blocks or notes */
 	flashcardTag: string;
+	/** Enable haptic feedback (vibrations) on supported mobile devices */
+	enableHaptics: boolean;
+	/** Enable touch swipe gestures to rate and flip flashcards on mobile */
+	swipeGestures: boolean;
+	/** Use compact space-saving Pomodoro banner on mobile */
+	compactMobileTimer: boolean;
 }
 
 export interface PluginData {
@@ -103,6 +109,9 @@ export const DEFAULT_SETTINGS: PluginSettings = {
 	bidirectionalSeparator: ":::",
 	multilineSeparator: "?",
 	flashcardTag: "#flashcard",
+	enableHaptics: true,
+	swipeGestures: true,
+	compactMobileTimer: true,
 };
 
 export const DEFAULT_STATS: StudyStats = {

@@ -34,6 +34,9 @@ export class FlashcardStudyView extends ItemView {
 	private timerDotsEl: HTMLElement | null = null;
 	private sessionStatsEl: HTMLElement | null = null;
 	private rootContainerEl: HTMLElement | null = null;
+	private bannerEl: HTMLElement | null = null;
+	private bannerToggleBtnEl: HTMLButtonElement | null = null;
+	private isBannerExpanded = true;
 	private cardStageEl: HTMLElement | null = null;
 	private deckSelectEl: HTMLSelectElement | null = null;
 	private phasePillEls: Map<PomodoroPhase, HTMLButtonElement> = new Map();
@@ -63,6 +66,17 @@ export class FlashcardStudyView extends ItemView {
 		this.buildLayout();
 		this.rebuildQueue();
 		this.renderCardStage();
+
+		// Warm up Web Audio / iOS AudioContext on initial interaction
+		this.registerDomEvent(
+			this.contentEl,
+			"touchstart",
+			() => this.plugin.pomodoro.unlockAudio(),
+			{ passive: true }
+		);
+		this.registerDomEvent(this.contentEl, "click", () =>
+			this.plugin.pomodoro.unlockAudio()
+		);
 
 		this.unsubscribePomodoro = this.plugin.pomodoro.subscribe(
 			(state, event) => {
@@ -114,10 +128,19 @@ export class FlashcardStudyView extends ItemView {
 		this.rootContainerEl = root;
 
 		// 1. Integrated Pomodoro Header
-		const pomoBanner = root.createDiv({ cls: "pomo-fc-banner" });
+		this.isBannerExpanded =
+			!Platform.isMobile || !this.plugin.settings.compactMobileTimer;
 
-		// Left: SVG Ring + Time + Phase
-		const pomoLeft = pomoBanner.createDiv({ cls: "pomo-fc-banner-left" });
+		const pomoBanner = root.createDiv({ cls: "pomo-fc-banner" });
+		this.bannerEl = pomoBanner;
+		if (!this.isBannerExpanded) {
+			pomoBanner.addClass("is-collapsed");
+		}
+
+		// Main Row: Left (ring, digits, phase badge) + Right controls (start/pause, skip, expand)
+		const mainRow = pomoBanner.createDiv({ cls: "pomo-fc-banner-main-row" });
+
+		const pomoLeft = mainRow.createDiv({ cls: "pomo-fc-banner-left" });
 		const ringWrapper = pomoLeft.createDiv({ cls: "pomo-fc-ring-wrapper" });
 
 		const svgNS = "http://www.w3.org/2000/svg";
@@ -159,8 +182,47 @@ export class FlashcardStudyView extends ItemView {
 			text: "25:00",
 		});
 
-		// Center: Phase Switcher Pills + Session Stats
-		const pomoCenter = pomoBanner.createDiv({ cls: "pomo-fc-banner-center" });
+		// Right: Timer Controls
+		const pomoControls = mainRow.createDiv({
+			cls: "pomo-fc-banner-controls",
+		});
+		this.timerToggleBtnEl = pomoControls.createEl("button", {
+			cls: "pomo-fc-btn pomo-fc-btn-primary",
+			text: "Start",
+		});
+		this.timerToggleBtnEl.addEventListener("click", () => {
+			this.plugin.pomodoro.toggle();
+		});
+
+		const skipBtn = pomoControls.createEl("button", {
+			cls: "pomo-fc-btn",
+			text: "Skip ⏭",
+			attr: { title: "Skip to next Pomodoro phase", "aria-label": "Skip phase" },
+		});
+		skipBtn.addEventListener("click", () => {
+			this.plugin.pomodoro.skipPhase();
+		});
+
+		this.bannerToggleBtnEl = pomoControls.createEl("button", {
+			cls: "pomo-fc-btn pomo-fc-banner-toggle-btn",
+			text: this.isBannerExpanded ? "▴" : "▾",
+			attr: {
+				title: "Toggle timer options and statistics",
+				"aria-label": "Toggle timer options and statistics",
+			},
+		});
+		this.bannerToggleBtnEl.addEventListener("click", () => {
+			this.toggleBannerDetails();
+		});
+
+		// Expandable Section: Phase pills + Session stats
+		const expandableSection = pomoBanner.createDiv({
+			cls: "pomo-fc-banner-expandable",
+		});
+
+		const pomoCenter = expandableSection.createDiv({
+			cls: "pomo-fc-banner-center",
+		});
 		const phasePills = pomoCenter.createDiv({ cls: "pomo-fc-phase-pills" });
 		this.phasePillEls.clear();
 		const phases: { id: PomodoroPhase; label: string }[] = [
@@ -179,50 +241,34 @@ export class FlashcardStudyView extends ItemView {
 			this.phasePillEls.set(p.id, pill);
 		}
 
-		this.sessionStatsEl = pomoCenter.createDiv({
-			cls: "pomo-fc-session-stats",
-		});
-
-		// Right: Timer Controls
-		const pomoControls = pomoBanner.createDiv({
-			cls: "pomo-fc-banner-controls",
-		});
-		this.timerToggleBtnEl = pomoControls.createEl("button", {
-			cls: "pomo-fc-btn pomo-fc-btn-primary",
-			text: "Start",
-		});
-		this.timerToggleBtnEl.addEventListener("click", () => {
-			this.plugin.pomodoro.toggle();
-		});
-
-		const resetBtn = pomoControls.createEl("button", {
-			cls: "pomo-fc-btn",
-			text: "Reset",
+		const resetBtn = phasePills.createEl("button", {
+			cls: "pomo-fc-phase-pill pomo-fc-reset-pill",
+			text: "↺ Reset",
 			attr: { title: "Reset current phase timer" },
 		});
 		resetBtn.addEventListener("click", () => {
 			this.plugin.pomodoro.reset();
 		});
 
-		const skipBtn = pomoControls.createEl("button", {
-			cls: "pomo-fc-btn",
-			text: "Skip ⏭",
-			attr: { title: "Skip to next Pomodoro phase" },
-		});
-		skipBtn.addEventListener("click", () => {
-			this.plugin.pomodoro.skipPhase();
+		this.sessionStatsEl = pomoCenter.createDiv({
+			cls: "pomo-fc-session-stats",
 		});
 
 		// 2. Deck & Study Mode Toolbar
 		const toolbar = root.createDiv({ cls: "pomo-fc-toolbar" });
-		const filterGroup = toolbar.createDiv({ cls: "pomo-fc-toolbar-group" });
-
-		filterGroup.createSpan({
-			cls: "pomo-fc-toolbar-label",
-			text: "Deck:",
+		const filterGroup = toolbar.createDiv({
+			cls: "pomo-fc-toolbar-group pomo-fc-filter-group",
 		});
+
+		if (!Platform.isMobile) {
+			filterGroup.createSpan({
+				cls: "pomo-fc-toolbar-label",
+				text: "Deck:",
+			});
+		}
 		this.deckSelectEl = filterGroup.createEl("select", {
 			cls: "dropdown pomo-fc-deck-select",
+			attr: { "aria-label": "Select deck" },
 		});
 		this.populateDeckSelector();
 		this.deckSelectEl.addEventListener("change", () => {
@@ -233,14 +279,15 @@ export class FlashcardStudyView extends ItemView {
 
 		const modeSelect = filterGroup.createEl("select", {
 			cls: "dropdown pomo-fc-mode-select",
+			attr: { "aria-label": "Select study mode" },
 		});
 		modeSelect.createEl("option", {
 			value: "due",
-			text: "Due cards (spaced repetition)",
+			text: Platform.isMobile ? "Due cards" : "Due cards (spaced repetition)",
 		});
 		modeSelect.createEl("option", {
 			value: "cram",
-			text: "Cram mode (all cards)",
+			text: Platform.isMobile ? "Cram all" : "Cram mode (all cards)",
 		});
 		modeSelect.value = this.studyMode;
 		modeSelect.addEventListener("change", () => {
@@ -249,10 +296,13 @@ export class FlashcardStudyView extends ItemView {
 			this.renderCardStage();
 		});
 
-		const actionsGroup = toolbar.createDiv({ cls: "pomo-fc-toolbar-group" });
+		const actionsGroup = toolbar.createDiv({
+			cls: "pomo-fc-toolbar-group pomo-fc-actions-group",
+		});
 		const newCardBtn = actionsGroup.createEl("button", {
-			cls: "pomo-fc-btn",
-			text: "+ New card",
+			cls: "pomo-fc-btn pomo-fc-new-card-btn",
+			text: Platform.isMobile ? "+ Card" : "+ New card",
+			attr: { title: "Create new flashcard" },
 		});
 		newCardBtn.addEventListener("click", () => {
 			new CreateFlashcardModal(this.app, this.plugin, {
@@ -265,9 +315,12 @@ export class FlashcardStudyView extends ItemView {
 		});
 
 		const rescanBtn = actionsGroup.createEl("button", {
-			cls: "pomo-fc-btn",
-			text: "↻ Rescan",
-			attr: { title: "Rescan vault Markdown files for flashcards" },
+			cls: "pomo-fc-btn pomo-fc-rescan-btn",
+			text: Platform.isMobile ? "↻" : "↻ Rescan",
+			attr: {
+				title: "Rescan vault Markdown files for flashcards",
+				"aria-label": "Rescan vault",
+			},
 		});
 		rescanBtn.addEventListener("click", async () => {
 			await this.plugin.scanVaultCards();
@@ -282,6 +335,22 @@ export class FlashcardStudyView extends ItemView {
 
 		// Initial Pomodoro DOM sync
 		this.updatePomodoroDOM(this.plugin.pomodoro.getState());
+	}
+
+	private toggleBannerDetails(): void {
+		this.isBannerExpanded = !this.isBannerExpanded;
+		if (this.bannerEl) {
+			this.bannerEl.toggleClass("is-collapsed", !this.isBannerExpanded);
+		}
+		if (this.bannerToggleBtnEl) {
+			this.bannerToggleBtnEl.setText(this.isBannerExpanded ? "▴" : "▾");
+			this.bannerToggleBtnEl.setAttribute(
+				"aria-label",
+				this.isBannerExpanded
+					? "Collapse timer details"
+					: "Expand timer details"
+			);
+		}
 	}
 
 	private populateDeckSelector(): void {
@@ -523,6 +592,16 @@ export class FlashcardStudyView extends ItemView {
 		const card = this.queue[this.currentIndex];
 		const cardEl = this.cardStageEl.createDiv({ cls: "pomo-fc-card" });
 
+		// Swipe indicator badges for mobile drag rating
+		const againBadge = cardEl.createDiv({
+			cls: "pomo-fc-swipe-badge pomo-fc-swipe-again",
+			text: "AGAIN",
+		});
+		const goodBadge = cardEl.createDiv({
+			cls: "pomo-fc-swipe-badge pomo-fc-swipe-good",
+			text: "GOOD",
+		});
+
 		// Card Header: Deck badge, Queue position, SRS metadata, Source Note link
 		const cardHeader = cardEl.createDiv({ cls: "pomo-fc-card-header" });
 		const headerLeft = cardHeader.createDiv({ cls: "pomo-fc-card-meta-left" });
@@ -545,17 +624,27 @@ export class FlashcardStudyView extends ItemView {
 			)}`,
 		});
 
+		// Display shortened note name on mobile to prevent header wrapping
+		const baseFileName = card.sourcePath.split("/").pop() || card.sourcePath;
+		const displaySource = Platform.isMobile
+			? `${baseFileName}:${card.lineStart + 1}`
+			: `${card.sourcePath}:${card.lineStart + 1}`;
 		const sourceBtn = headerRight.createEl("button", {
 			cls: "pomo-fc-source-link",
-			text: `${card.sourcePath}:${card.lineStart + 1}`,
-			attr: { title: "Open source note at this flashcard" },
+			text: displaySource,
+			attr: {
+				title: `Open ${card.sourcePath} (line ${card.lineStart + 1})`,
+			},
 		});
 		sourceBtn.addEventListener("click", () => {
-			this.openCardSource(card);
+			void this.openCardSource(card);
 		});
 
+		// Scrollable Card Body (contains question and answer)
+		const cardBodyEl = cardEl.createDiv({ cls: "pomo-fc-card-body" });
+
 		// Question Section
-		const questionSection = cardEl.createDiv({
+		const questionSection = cardBodyEl.createDiv({
 			cls: "pomo-fc-card-section pomo-fc-question-section",
 		});
 		questionSection.createDiv({
@@ -574,12 +663,15 @@ export class FlashcardStudyView extends ItemView {
 		);
 
 		if (!this.isAnswerShown) {
-			// Allow tapping the question section to reveal answer on iOS / iPadOS touchscreens
+			// Allow tapping question to reveal answer
 			questionSection.addClass("is-tappable");
 			questionSection.addEventListener("click", (evt) => {
 				const target = evt.target as HTMLElement | null;
-				if (target && target.closest("a, button")) {
+				if (target && target.closest("a, button, select, input, textarea")) {
 					return;
+				}
+				if (this.plugin.settings.enableHaptics) {
+					PomodoroTimer.triggerHaptic(10);
 				}
 				this.revealAnswer();
 			});
@@ -588,14 +680,19 @@ export class FlashcardStudyView extends ItemView {
 			const revealFooter = cardEl.createDiv({ cls: "pomo-fc-card-footer" });
 			const showAnswerBtn = revealFooter.createEl("button", {
 				cls: "pomo-fc-btn pomo-fc-btn-primary pomo-fc-show-answer-btn",
-				text: Platform.isMobile ? "Show answer (tap)" : "Show answer (space)",
+				text: Platform.isMobile
+					? "Show answer (tap or swipe up)"
+					: "Show answer (space)",
 			});
 			showAnswerBtn.addEventListener("click", () => {
+				if (this.plugin.settings.enableHaptics) {
+					PomodoroTimer.triggerHaptic(10);
+				}
 				this.revealAnswer();
 			});
 		} else {
 			// Answer Section
-			const answerSection = cardEl.createDiv({
+			const answerSection = cardBodyEl.createDiv({
 				cls: "pomo-fc-card-section pomo-fc-answer-section",
 			});
 			answerSection.createDiv({
@@ -613,9 +710,20 @@ export class FlashcardStudyView extends ItemView {
 				this
 			);
 
-			// Rating Buttons (SM-2)
+			// Rating Footer
 			const ratingFooter = cardEl.createDiv({
-				cls: "pomo-fc-card-footer pomo-fc-rating-grid",
+				cls: "pomo-fc-card-footer pomo-fc-rating-footer",
+			});
+
+			if (Platform.isMobile && this.plugin.settings.swipeGestures) {
+				const swipeHint = ratingFooter.createDiv({
+					cls: "pomo-fc-swipe-hint",
+				});
+				swipeHint.textContent = "👈 Swipe left for Again · Swipe right for Good 👉";
+			}
+
+			const ratingGrid = ratingFooter.createDiv({
+				cls: "pomo-fc-rating-grid",
 			});
 			const intervals = previewIntervals(card.srs);
 			const ratings: {
@@ -636,7 +744,7 @@ export class FlashcardStudyView extends ItemView {
 			];
 
 			for (const r of ratings) {
-				const btn = ratingFooter.createEl("button", {
+				const btn = ratingGrid.createEl("button", {
 					cls: `pomo-fc-rate-btn ${r.cls}`,
 				});
 				btn.createSpan({
@@ -645,13 +753,172 @@ export class FlashcardStudyView extends ItemView {
 				});
 				const bottomRow = btn.createDiv({ cls: "pomo-fc-rate-label-row" });
 				bottomRow.createSpan({ cls: "pomo-fc-rate-label", text: r.label });
-				bottomRow.createSpan({ cls: "pomo-fc-rate-key", text: `[${r.key}]` });
+				if (!Platform.isMobile) {
+					bottomRow.createSpan({ cls: "pomo-fc-rate-key", text: `[${r.key}]` });
+				}
 
 				btn.addEventListener("click", () => {
 					void this.submitRating(card, r.id);
 				});
 			}
 		}
+
+		// Attach Touch & Swipe Gestures
+		this.attachTouchGestures(cardEl, card, againBadge, goodBadge);
+	}
+
+	private attachTouchGestures(
+		cardEl: HTMLElement,
+		card: Flashcard,
+		againBadge: HTMLElement,
+		goodBadge: HTMLElement
+	): void {
+		let startX = 0;
+		let startY = 0;
+		let startTime = 0;
+		let gestureMode: "horizontal" | "vertical" | null = null;
+		let hasVibratedThreshold = false;
+		const SWIPE_THRESHOLD = 70;
+
+		const onTouchStart = (e: TouchEvent) => {
+			const target = e.target as HTMLElement | null;
+			if (target && target.closest("button, a, select, input, textarea")) {
+				return;
+			}
+			this.plugin.pomodoro.unlockAudio();
+			if (e.touches.length !== 1) return;
+
+			startX = e.touches[0].clientX;
+			startY = e.touches[0].clientY;
+			startTime = Date.now();
+			gestureMode = null;
+			hasVibratedThreshold = false;
+			cardEl.style.transition = "none";
+		};
+
+		const onTouchMove = (e: TouchEvent) => {
+			if (e.touches.length !== 1) return;
+			const currentX = e.touches[0].clientX;
+			const currentY = e.touches[0].clientY;
+			const dx = currentX - startX;
+			const dy = currentY - startY;
+
+			if (gestureMode === null) {
+				if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 8) {
+					gestureMode = "vertical";
+					return;
+				}
+				if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 8) {
+					if (!this.plugin.settings.swipeGestures) return;
+					gestureMode = "horizontal";
+				}
+			}
+
+			if (gestureMode === "horizontal" && this.isAnswerShown) {
+				if (e.cancelable) e.preventDefault();
+				const rot = dx * 0.04;
+				cardEl.style.transform = `translateX(${dx}px) rotate(${rot}deg)`;
+
+				if (dx < 0) {
+					const ratio = Math.min(1, Math.abs(dx) / SWIPE_THRESHOLD);
+					againBadge.style.opacity = ratio.toFixed(2);
+					goodBadge.style.opacity = "0";
+					if (Math.abs(dx) >= SWIPE_THRESHOLD && !hasVibratedThreshold) {
+						if (this.plugin.settings.enableHaptics) {
+							PomodoroTimer.triggerHaptic(12);
+						}
+						hasVibratedThreshold = true;
+					} else if (Math.abs(dx) < SWIPE_THRESHOLD) {
+						hasVibratedThreshold = false;
+					}
+				} else {
+					const ratio = Math.min(1, Math.abs(dx) / SWIPE_THRESHOLD);
+					goodBadge.style.opacity = ratio.toFixed(2);
+					againBadge.style.opacity = "0";
+					if (Math.abs(dx) >= SWIPE_THRESHOLD && !hasVibratedThreshold) {
+						if (this.plugin.settings.enableHaptics) {
+							PomodoroTimer.triggerHaptic(12);
+						}
+						hasVibratedThreshold = true;
+					} else if (Math.abs(dx) < SWIPE_THRESHOLD) {
+						hasVibratedThreshold = false;
+					}
+				}
+			}
+		};
+
+		const onTouchEnd = (e: TouchEvent) => {
+			if (e.changedTouches.length === 0) return;
+			const endX = e.changedTouches[0].clientX;
+			const endY = e.changedTouches[0].clientY;
+			const dx = endX - startX;
+			const dy = endY - startY;
+			const elapsed = Date.now() - startTime;
+
+			if (gestureMode === "horizontal" && this.isAnswerShown) {
+				cardEl.style.transition =
+					"transform 0.22s ease-out, opacity 0.22s ease-out";
+				if (dx <= -SWIPE_THRESHOLD) {
+					// Swiped Left -> AGAIN
+					cardEl.style.transform = "translateX(-120%) rotate(-14deg)";
+					cardEl.style.opacity = "0";
+					againBadge.style.opacity = "1";
+					void this.submitRating(card, "again");
+					return;
+				} else if (dx >= SWIPE_THRESHOLD) {
+					// Swiped Right -> GOOD
+					cardEl.style.transform = "translateX(120%) rotate(14deg)";
+					cardEl.style.opacity = "0";
+					goodBadge.style.opacity = "1";
+					void this.submitRating(card, "good");
+					return;
+				} else {
+					// Snap back
+					cardEl.style.transform = "translateX(0) rotate(0deg)";
+					againBadge.style.opacity = "0";
+					goodBadge.style.opacity = "0";
+					return;
+				}
+			}
+
+			// Swipe UP on question card to flip
+			if (
+				!this.isAnswerShown &&
+				dy < -50 &&
+				Math.abs(dx) < 40 &&
+				elapsed < 500
+			) {
+				if (this.plugin.settings.enableHaptics) {
+					PomodoroTimer.triggerHaptic(10);
+				}
+				this.revealAnswer();
+				return;
+			}
+
+			// Clean tap on card stage to flip when answer is not yet shown
+			if (!this.isAnswerShown && Math.abs(dx) < 10 && Math.abs(dy) < 10) {
+				const target = e.target as HTMLElement | null;
+				if (!target?.closest("button, a, select, input, textarea")) {
+					if (this.plugin.settings.enableHaptics) {
+						PomodoroTimer.triggerHaptic(10);
+					}
+					this.revealAnswer();
+				}
+			}
+		};
+
+		const onTouchCancel = () => {
+			cardEl.style.transition = "transform 0.2s ease";
+			cardEl.style.transform = "translateX(0) rotate(0deg)";
+			againBadge.style.opacity = "0";
+			goodBadge.style.opacity = "0";
+			gestureMode = null;
+		};
+
+		cardEl.addEventListener("touchstart", onTouchStart, { passive: true });
+		cardEl.addEventListener("touchmove", onTouchMove, { passive: false });
+		cardEl.addEventListener("touchend", onTouchEnd, { passive: true });
+		cardEl.addEventListener("touchcancel", onTouchCancel, { passive: true });
 	}
 
 	private revealAnswer(): void {
@@ -661,17 +928,34 @@ export class FlashcardStudyView extends ItemView {
 	}
 
 	private async submitRating(card: Flashcard, rating: Rating): Promise<void> {
+		if (this.plugin.settings.enableHaptics) {
+			switch (rating) {
+				case "again":
+					PomodoroTimer.triggerHaptic([15, 45, 15]);
+					break;
+				case "hard":
+					PomodoroTimer.triggerHaptic(25);
+					break;
+				case "good":
+					PomodoroTimer.triggerHaptic(15);
+					break;
+				case "easy":
+					PomodoroTimer.triggerHaptic([15, 30, 20]);
+					break;
+			}
+		}
+
 		await this.plugin.rateCard(card.id, rating);
 		this.plugin.pomodoro.recordCardReview();
 
-		// Auto-start focus timer if not running during a work session? Keep manual or seamless:
 		this.populateDeckSelector();
 
 		if (this.studyMode === "due") {
 			this.rebuildQueue();
 		} else {
 			// In cram mode, advance to next card in list
-			this.currentIndex = (this.currentIndex + 1) % Math.max(1, this.queue.length);
+			this.currentIndex =
+				(this.currentIndex + 1) % Math.max(1, this.queue.length);
 			this.isAnswerShown = false;
 		}
 		this.renderCardStage();
@@ -683,9 +967,7 @@ export class FlashcardStudyView extends ItemView {
 			new Notice(`Could not find file: ${card.sourcePath}`);
 			return;
 		}
-		const leaf = Platform.isMobile
-			? this.app.workspace.getLeaf(false)
-			: this.app.workspace.getLeaf("tab");
+		const leaf = this.app.workspace.getLeaf("tab");
 		await leaf.openFile(file, {
 			eState: { line: card.lineStart },
 		});

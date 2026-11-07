@@ -68,7 +68,7 @@ export class PomodoroTimer {
 
 	public start(): void {
 		if (this.state.isRunning) return;
-		this.unlockAudioForIOS();
+		this.unlockAudio();
 		this.state.isRunning = true;
 		this.targetEndTimeMs = Date.now() + this.state.remainingSeconds * 1000;
 		this.intervalId = window.setInterval(() => this.tick(), 500);
@@ -189,8 +189,13 @@ export class PomodoroTimer {
 		this.targetEndTimeMs = null;
 		this.clearTimer();
 
-		if (naturalCompletion && this.settings.playSound) {
-			this.playChime(this.state.phase === "work" ? "break" : "work");
+		if (naturalCompletion) {
+			if (this.settings.playSound) {
+				this.playChime(this.state.phase === "work" ? "break" : "work");
+			}
+			if (this.settings.enableHaptics) {
+				PomodoroTimer.triggerHaptic([120, 80, 120, 80, 250]);
+			}
 		}
 
 		if (this.state.phase === "work") {
@@ -239,9 +244,10 @@ export class PomodoroTimer {
 	}
 
 	/**
-	 * Unlock/resume shared WebKit AudioContext during user tap gesture on iOS / iPadOS.
+	 * Unlock and initialize shared WebKit/Android AudioContext during any user touch gesture.
+	 * Plays a silent 1-sample buffer to warm up mobile Web Audio without sound.
 	 */
-	private unlockAudioForIOS(): void {
+	public unlockAudio(): void {
 		if (!this.settings.playSound) return;
 		try {
 			const AudioCtx =
@@ -255,8 +261,29 @@ export class PomodoroTimer {
 			if (this.audioCtx.state === "suspended") {
 				void this.audioCtx.resume();
 			}
+			// Warm up mobile audio hardware with a silent buffer
+			if (this.audioCtx.state === "running") {
+				const buffer = this.audioCtx.createBuffer(1, 1, 22050);
+				const source = this.audioCtx.createBufferSource();
+				source.buffer = buffer;
+				source.connect(this.audioCtx.destination);
+				source.start(0);
+			}
 		} catch {
-			// Ignore audio errors
+			// Ignore audio initialization errors if blocked by platform
+		}
+	}
+
+	/**
+	 * Safe mobile haptic feedback helper using navigator.vibrate.
+	 */
+	public static triggerHaptic(pattern: number | number[]): void {
+		try {
+			if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
+				navigator.vibrate(pattern);
+			}
+		} catch {
+			// Ignore vibration errors on unsupported platforms
 		}
 	}
 

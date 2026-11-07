@@ -74,8 +74,8 @@ export default class PomodoroFlashcardsPlugin extends Plugin {
 			}).open();
 		});
 
-		// Status Bar Indicator (Desktop only)
-		if (!Platform.isMobile) {
+		// Status Bar Indicator (Desktop and Tablet)
+		if (!Platform.isPhone) {
 			this.statusBarEl = this.addStatusBarItem();
 			this.statusBarEl.addClass("pomo-fc-statusbar");
 			this.statusBarEl.setAttribute(
@@ -245,15 +245,15 @@ export default class PomodoroFlashcardsPlugin extends Plugin {
 		if (leaves.length > 0) {
 			leaf = leaves[0];
 		} else {
-			leaf = Platform.isMobile
-				? workspace.getLeaf(false)
-				: workspace.getLeaf("tab");
+			// Always create a new tab so user notes are preserved on mobile & desktop
+			leaf = workspace.getLeaf("tab");
 			await leaf.setViewState({
 				type: VIEW_TYPE_POMODORO_FLASHCARDS,
 				active: true,
 			});
 		}
 
+		workspace.setActiveLeaf(leaf, { focus: true });
 		await workspace.revealLeaf(leaf);
 	}
 

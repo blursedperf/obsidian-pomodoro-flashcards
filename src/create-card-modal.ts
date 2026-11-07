@@ -1,6 +1,7 @@
-import { App, MarkdownView, Modal, Notice, Setting, TFile } from "obsidian";
+import { App, MarkdownView, Modal, Notice, Platform, Setting, TFile } from "obsidian";
 import PomodoroFlashcardsPlugin from "./main";
 import { formatFlashcardMarkdown } from "./parser";
+import { PomodoroTimer } from "./pomodoro";
 
 export interface CreateCardModalOptions {
 	initialQuestion?: string;
@@ -144,8 +145,19 @@ export class CreateFlashcardModal extends Modal {
 		// Action Buttons
 		const footer = contentEl.createDiv({ cls: "pomo-fc-modal-footer" });
 
+		if (Platform.isMobile) {
+			const cancelBtn = footer.createEl("button", {
+				text: "Cancel",
+				cls: "pomo-fc-modal-cancel-btn",
+			});
+			cancelBtn.addEventListener("click", () => {
+				this.close();
+			});
+		}
+
 		const addAnotherBtn = footer.createEl("button", {
-			text: "Save and add another",
+			text: Platform.isMobile ? "Save & add another" : "Save and add another",
+			cls: "pomo-fc-modal-secondary-btn",
 		});
 		addAnotherBtn.addEventListener("click", async () => {
 			await this.saveCard(true, qTextarea, aTextarea);
@@ -153,7 +165,7 @@ export class CreateFlashcardModal extends Modal {
 
 		const saveCloseBtn = footer.createEl("button", {
 			text: "Save flashcard",
-			cls: "mod-cta",
+			cls: "mod-cta pomo-fc-modal-primary-btn",
 		});
 		saveCloseBtn.addEventListener("click", async () => {
 			await this.saveCard(false, qTextarea, aTextarea);
@@ -234,6 +246,9 @@ export class CreateFlashcardModal extends Modal {
 
 			await this.plugin.scanVaultCards();
 			this.onCardCreated?.();
+			if (this.plugin.settings.enableHaptics) {
+				PomodoroTimer.triggerHaptic(15);
+			}
 			new Notice(`Flashcard saved to ${filePath}`);
 
 			if (keepOpen) {

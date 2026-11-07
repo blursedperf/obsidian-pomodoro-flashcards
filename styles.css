@@ -15,7 +15,7 @@
 	max-width: 960px;
 	margin: 0 auto;
 	padding: 16px 20px;
-	gap: 16px;
+	gap: 14px;
 	box-sizing: border-box;
 }
 
@@ -33,27 +33,34 @@
 
 .pomo-fc-banner {
 	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	flex-wrap: wrap;
-	gap: 16px;
-	padding: 14px 18px;
+	flex-direction: column;
+	gap: 10px;
+	padding: 12px 16px;
 	background-color: var(--background-secondary);
 	border: 1px solid var(--background-modifier-border);
 	border-left: 4px solid var(--pomo-phase-accent);
 	border-radius: 10px;
 	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+	transition: padding 0.2s ease, gap 0.2s ease;
+}
+
+.pomo-fc-banner-main-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	width: 100%;
 }
 
 .pomo-fc-banner-left {
 	display: flex;
 	align-items: center;
-	gap: 14px;
+	gap: 12px;
 }
 
 .pomo-fc-ring-wrapper {
-	width: 60px;
-	height: 60px;
+	width: 54px;
+	height: 54px;
 	flex-shrink: 0;
 }
 
@@ -86,7 +93,7 @@
 .pomo-fc-phase-row {
 	display: flex;
 	align-items: center;
-	gap: 8px;
+	gap: 6px;
 }
 
 .pomo-fc-phase-badge {
@@ -104,18 +111,49 @@
 }
 
 .pomo-fc-clock-digits {
-	font-size: 1.75rem;
+	font-size: 1.65rem;
 	font-weight: 700;
 	font-variant-numeric: tabular-nums;
 	line-height: 1.1;
 	color: var(--text-normal);
 }
 
-.pomo-fc-banner-center {
+.pomo-fc-banner-controls {
 	display: flex;
-	flex-direction: column;
 	align-items: center;
 	gap: 6px;
+	flex-shrink: 0;
+}
+
+.pomo-fc-banner-toggle-btn {
+	padding: 6px 10px;
+	font-size: 0.85rem;
+	color: var(--text-muted);
+}
+
+.pomo-fc-banner-expandable {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 10px;
+	width: 100%;
+	padding-top: 10px;
+	border-top: 1px solid var(--background-modifier-border);
+	animation: pomoFcFadeIn 0.2s ease-out;
+}
+
+.pomo-fc-banner.is-collapsed .pomo-fc-banner-expandable {
+	display: none;
+}
+
+.pomo-fc-banner-center {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	width: 100%;
+	flex-wrap: wrap;
+	gap: 8px;
 }
 
 .pomo-fc-phase-pills {
@@ -150,15 +188,13 @@
 	font-weight: 600;
 }
 
+.pomo-fc-reset-pill {
+	margin-left: 2px;
+}
+
 .pomo-fc-session-stats {
 	font-size: 0.78rem;
 	color: var(--text-muted);
-}
-
-.pomo-fc-banner-controls {
-	display: flex;
-	align-items: center;
-	gap: 8px;
 }
 
 .pomo-fc-btn {
@@ -167,6 +203,11 @@
 	border-radius: 6px;
 	font-size: 0.85rem;
 	font-weight: 500;
+	transition: background-color 0.15s ease, transform 0.08s ease;
+}
+
+.pomo-fc-btn:active {
+	transform: scale(0.97);
 }
 
 .pomo-fc-btn-primary {
@@ -188,7 +229,7 @@
 	align-items: center;
 	justify-content: space-between;
 	flex-wrap: wrap;
-	gap: 10px;
+	gap: 8px;
 	padding: 8px 12px;
 	background-color: var(--background-secondary-alt, var(--background-secondary));
 	border: 1px solid var(--background-modifier-border);
@@ -199,13 +240,32 @@
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	flex-wrap: wrap;
+}
+
+.pomo-fc-filter-group {
+	flex: 1;
+	min-width: 0;
+}
+
+.pomo-fc-deck-select,
+.pomo-fc-mode-select {
+	flex: 1;
+	min-width: 0;
+	text-overflow: ellipsis;
+	overflow: hidden;
+	white-space: nowrap;
+}
+
+.pomo-fc-actions-group {
+	flex-shrink: 0;
+	gap: 6px;
 }
 
 .pomo-fc-toolbar-label {
-	font-size: 0.85rem;
+	font-size: 0.82rem;
 	font-weight: 600;
 	color: var(--text-muted);
+	flex-shrink: 0;
 }
 
 /* --------------------------------------------------------------------------
@@ -216,19 +276,56 @@
 	flex: 1;
 	display: flex;
 	flex-direction: column;
-	min-height: 320px;
+	min-height: 280px;
 }
 
 .pomo-fc-card {
+	position: relative;
 	flex: 1;
+	min-height: 0;
 	display: flex;
 	flex-direction: column;
 	background-color: var(--background-primary-alt, var(--background-secondary));
 	border: 1px solid var(--background-modifier-border);
-	border-radius: 12px;
-	padding: 20px 24px;
+	border-radius: 14px;
+	padding: 16px 20px;
 	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
-	gap: 16px;
+	gap: 12px;
+	touch-action: pan-y;
+	overflow: hidden;
+	box-sizing: border-box;
+}
+
+.pomo-fc-swipe-badge {
+	position: absolute;
+	top: 20px;
+	padding: 6px 14px;
+	border-radius: 8px;
+	font-size: 1.15rem;
+	font-weight: 800;
+	letter-spacing: 0.1em;
+	opacity: 0;
+	pointer-events: none;
+	z-index: 10;
+	box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+	transition: opacity 0.08s ease;
+	user-select: none;
+}
+
+.pomo-fc-swipe-again {
+	right: 18px;
+	color: var(--pomo-rate-again, #e05252);
+	border: 3px solid var(--pomo-rate-again, #e05252);
+	background: var(--background-primary);
+	transform: rotate(12deg);
+}
+
+.pomo-fc-swipe-good {
+	left: 18px;
+	color: var(--pomo-rate-good, #2ea043);
+	border: 3px solid var(--pomo-rate-good, #2ea043);
+	background: var(--background-primary);
+	transform: rotate(-12deg);
 }
 
 .pomo-fc-card-header {
@@ -237,31 +334,36 @@
 	justify-content: space-between;
 	flex-wrap: wrap;
 	gap: 8px;
-	padding-bottom: 12px;
+	padding-bottom: 10px;
 	border-bottom: 1px solid var(--background-modifier-border);
+	flex-shrink: 0;
 }
 
 .pomo-fc-card-meta-left,
 .pomo-fc-card-meta-right {
 	display: flex;
 	align-items: center;
-	gap: 10px;
+	gap: 8px;
 	flex-wrap: wrap;
 }
 
 .pomo-fc-deck-badge {
 	background-color: var(--background-modifier-hover);
 	color: var(--text-accent);
-	font-size: 0.76rem;
+	font-size: 0.74rem;
 	font-weight: 600;
-	padding: 3px 9px;
+	padding: 3px 8px;
 	border-radius: 999px;
 	border: 1px solid var(--background-modifier-border);
+	max-width: 160px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .pomo-fc-queue-pos,
 .pomo-fc-srs-pill {
-	font-size: 0.78rem;
+	font-size: 0.76rem;
 	color: var(--text-muted);
 }
 
@@ -269,11 +371,15 @@
 	background: transparent;
 	border: 1px solid var(--background-modifier-border);
 	color: var(--text-muted);
-	font-size: 0.75rem;
-	padding: 2px 8px;
+	font-size: 0.74rem;
+	padding: 2px 7px;
 	border-radius: 5px;
 	cursor: pointer;
 	height: auto;
+	max-width: 180px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .pomo-fc-source-link:hover {
@@ -281,17 +387,28 @@
 	border-color: var(--interactive-accent);
 }
 
-.pomo-fc-card-section {
+.pomo-fc-card-body {
 	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	-webkit-overflow-scrolling: touch;
 	display: flex;
 	flex-direction: column;
 	justify-content: center;
-	padding: 12px 8px;
+	padding: 8px 4px;
+	gap: 12px;
+}
+
+.pomo-fc-card-section {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	padding: 6px 4px;
 }
 
 .pomo-fc-answer-section {
 	border-top: 2px dashed var(--background-modifier-border);
-	padding-top: 18px;
+	padding-top: 14px;
 	animation: pomoFcFadeIn 0.2s ease-out;
 }
 
@@ -307,15 +424,15 @@
 }
 
 .pomo-fc-side-label {
-	font-size: 0.7rem;
+	font-size: 0.68rem;
 	font-weight: 700;
 	letter-spacing: 0.08em;
 	color: var(--text-faint);
-	margin-bottom: 8px;
+	margin-bottom: 6px;
 }
 
 .pomo-fc-markdown-body {
-	font-size: 1.15rem;
+	font-size: 1.12rem;
 	line-height: 1.6;
 	color: var(--text-normal);
 	overflow-wrap: break-word;
@@ -331,19 +448,32 @@
 
 .pomo-fc-card-footer {
 	margin-top: auto;
-	padding-top: 14px;
+	padding-top: 10px;
 	border-top: 1px solid var(--background-modifier-border);
 	display: flex;
-	justify-content: center;
+	flex-direction: column;
+	align-items: center;
+	flex-shrink: 0;
+	width: 100%;
 }
 
 .pomo-fc-show-answer-btn {
 	width: 100%;
-	max-width: 340px;
+	max-width: 320px;
 	padding: 10px 20px;
 	font-size: 0.95rem;
 	font-weight: 600;
 	height: auto;
+	min-height: 44px;
+}
+
+.pomo-fc-swipe-hint {
+	text-align: center;
+	font-size: 0.74rem;
+	color: var(--text-faint);
+	margin-bottom: 8px;
+	user-select: none;
+	pointer-events: none;
 }
 
 /* --------------------------------------------------------------------------
@@ -353,7 +483,8 @@
 .pomo-fc-rating-grid {
 	display: grid;
 	grid-template-columns: repeat(4, 1fr);
-	gap: 10px;
+	gap: 8px;
+	width: 100%;
 }
 
 .pomo-fc-rate-btn {
@@ -364,15 +495,16 @@
 	gap: 3px;
 	padding: 8px 10px;
 	height: auto;
+	min-height: 44px;
 	border-radius: 8px;
 	cursor: pointer;
 	border: 1px solid var(--background-modifier-border);
 	background: var(--background-primary);
-	transition: transform 0.1s ease, border-color 0.15s ease;
+	transition: transform 0.08s ease, border-color 0.15s ease;
 }
 
-.pomo-fc-rate-btn:hover {
-	transform: translateY(-1px);
+.pomo-fc-rate-btn:active {
+	transform: scale(0.96);
 }
 
 .pomo-fc-rate-interval {
@@ -388,7 +520,7 @@
 }
 
 .pomo-fc-rate-label {
-	font-size: 0.9rem;
+	font-size: 0.88rem;
 	font-weight: 600;
 }
 
@@ -434,24 +566,24 @@
 	align-items: center;
 	justify-content: center;
 	text-align: center;
-	padding: 36px 24px;
+	padding: 28px 20px;
 }
 
 .pomo-fc-empty-icon,
 .pomo-fc-break-icon {
-	font-size: 2.8rem;
+	font-size: 2.6rem;
 	line-height: 1;
 	margin-bottom: 4px;
 }
 
 .pomo-fc-break-desc {
-	max-width: 460px;
+	max-width: 440px;
 	color: var(--text-muted);
 	margin: 4px 0 8px;
 }
 
 .pomo-fc-break-countdown {
-	font-size: 2.5rem;
+	font-size: 2.4rem;
 	font-weight: 700;
 	font-variant-numeric: tabular-nums;
 	color: var(--pomo-phase-accent);
@@ -464,6 +596,7 @@
 	flex-wrap: wrap;
 	justify-content: center;
 	margin-top: 8px;
+	width: 100%;
 }
 
 /* --------------------------------------------------------------------------
@@ -510,39 +643,116 @@
 	cursor: pointer;
 }
 
-/* iOS & iPadOS Mobile / Touch Ergonomics */
+/* --------------------------------------------------------------------------
+   7. Mobile & Touch Ergonomics
+   -------------------------------------------------------------------------- */
+
 .is-mobile .pomo-fc-view-root {
-	padding: 12px 12px calc(16px + env(safe-area-inset-bottom, 0px)) 12px;
-	overflow-y: auto;
-	-webkit-overflow-scrolling: touch;
+	padding: 8px 10px calc(14px + env(safe-area-inset-bottom, 0px)) 10px;
+	gap: 8px;
+	overflow: hidden;
+}
+
+.is-mobile .pomo-fc-banner {
+	padding: 8px 12px;
+	gap: 8px;
+}
+
+.is-mobile .pomo-fc-ring-wrapper {
+	width: 44px;
+	height: 44px;
+}
+
+.is-mobile .pomo-fc-clock-digits {
+	font-size: 1.35rem;
+}
+
+.is-mobile .pomo-fc-phase-badge {
+	font-size: 0.7rem;
 }
 
 .is-mobile .pomo-fc-btn,
 .is-mobile .pomo-fc-rate-btn,
 .is-mobile .pomo-fc-phase-pill {
-	min-height: 44px;
+	min-height: 42px;
+}
+
+.is-mobile .pomo-fc-rate-key {
+	display: none;
 }
 
 .is-mobile .pomo-fc-show-answer-btn {
 	min-height: 48px;
-	font-size: 1rem;
+	font-size: 0.95rem;
 }
 
+.is-mobile .pomo-fc-modal {
+	padding: 12px 14px;
+	max-height: 88vh;
+	overflow-y: auto;
+}
+
+.is-mobile .pomo-fc-modal .pomo-fc-textarea {
+	font-size: 16px !important; /* Prevents unwanted iOS Safari viewport auto-zoom */
+	min-height: 72px;
+	line-height: 1.4;
+}
+
+.is-mobile .pomo-fc-modal-footer {
+	flex-direction: column-reverse;
+	gap: 8px;
+}
+
+.is-mobile .pomo-fc-modal-footer button {
+	width: 100%;
+	min-height: 44px;
+	font-size: 0.95rem;
+}
+
+/* --------------------------------------------------------------------------
+   8. Narrow Screen Breakpoints (Phones & Narrow Panes)
+   -------------------------------------------------------------------------- */
+
 @media (max-width: 600px) {
-	.pomo-fc-banner {
+	.pomo-fc-rating-grid {
+		grid-template-columns: repeat(2, 1fr);
+		gap: 6px;
+	}
+
+	.pomo-fc-banner-expandable {
 		flex-direction: column;
 		align-items: stretch;
 	}
 
-	.pomo-fc-banner-controls {
+	.pomo-fc-banner-center {
+		flex-direction: column;
+		align-items: stretch;
+		gap: 8px;
+	}
+
+	.pomo-fc-phase-pills {
 		justify-content: stretch;
 	}
 
-	.pomo-fc-banner-controls .pomo-fc-btn {
+	.pomo-fc-phase-pill {
 		flex: 1;
+		text-align: center;
 	}
 
-	.pomo-fc-rating-grid {
-		grid-template-columns: repeat(2, 1fr);
+	.pomo-fc-empty-actions {
+		flex-direction: column;
+	}
+
+	.pomo-fc-empty-actions .pomo-fc-btn {
+		width: 100%;
+		min-height: 44px;
+	}
+
+	.pomo-fc-deck-badge {
+		max-width: 110px;
+	}
+
+	.pomo-fc-source-link {
+		max-width: 120px;
 	}
 }

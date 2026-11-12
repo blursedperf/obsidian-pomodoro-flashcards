@@ -1,5 +1,45 @@
-import { App, Notice, PluginSettingTab, Setting } from "obsidian";
+import {
+	App,
+	Notice,
+	PluginSettingTab,
+	Setting,
+	SettingDefinition,
+	SettingDefinitionGroup,
+	SettingDefinitionItem,
+} from "obsidian";
 import PomodoroFlashcardsPlugin from "./main";
+import { PluginSettings } from "./types";
+
+type SettingKey = keyof PluginSettings;
+
+/** Settings that require the running Pomodoro timer to pick up new values. */
+const POMODORO_KEYS = new Set<SettingKey>([
+	"workDuration",
+	"shortBreakDuration",
+	"longBreakDuration",
+	"longBreakInterval",
+]);
+
+/** Settings that change how open study views render. */
+const VIEW_KEYS = new Set<SettingKey>(["lockCardsOnBreak", "compactMobileTimer"]);
+
+/** Text settings that fall back to a default when cleared. */
+const TEXT_FALLBACKS: Partial<Record<SettingKey, string>> = {
+	defaultFlashcardNote: "Flashcards.md",
+	defaultDeck: "General",
+};
+
+function rangeValidator(min: number, max: number) {
+	return (value: number): string | void => {
+		if (!Number.isInteger(value) || value < min || value > max) {
+			return `Enter a whole number from ${min} to ${max}.`;
+		}
+	};
+}
+
+function nonEmpty(value: string): string | void {
+	if (!value.trim()) return "Separator cannot be empty.";
+}
 
 export class PomodoroFlashcardsSettingTab extends PluginSettingTab {
 	private plugin: PomodoroFlashcardsPlugin;
@@ -9,258 +49,273 @@ export class PomodoroFlashcardsSettingTab extends PluginSettingTab {
 		this.plugin = plugin;
 	}
 
+	/**
+	 * Declarative settings (Obsidian 1.13+): rendered by Obsidian and indexed
+	 * for settings search. `display()` renders the same definitions on older
+	 * versions.
+	 */
+	getSettingDefinitions(): SettingDefinitionItem<SettingKey>[] {
+		const numberControl = (
+			key: SettingKey,
+			placeholder: string,
+			min: number,
+			max: number
+		) => ({
+			type: "number" as const,
+			key,
+			placeholder,
+			min,
+			max,
+			step: 1,
+			validate: rangeValidator(min, max),
+		});
+
+		return [
+			{
+				type: "group",
+				heading: "Pomodoro timer",
+				items: [
+					{
+						name: "Focus session duration (minutes)",
+						desc: "Duration of each Pomodoro work interval (default: 25)",
+						control: numberControl("workDuration", "25", 1, 180),
+					},
+					{
+						name: "Short break duration (minutes)",
+						desc: "Duration of short breaks between focus sessions (default: 5)",
+						control: numberControl("shortBreakDuration", "5", 1, 60),
+					},
+					{
+						name: "Long break duration (minutes)",
+						desc: "Duration of long breaks after a full cycle (default: 15)",
+						control: numberControl("longBreakDuration", "15", 1, 120),
+					},
+					{
+						name: "Long break interval",
+						desc: "Number of focus sessions before triggering a long break",
+						control: numberControl("longBreakInterval", "4", 1, 12),
+					},
+					{
+						name: "Lock flashcards during breaks",
+						desc: "Automatically pause flashcard reviews with a rest screen when a break starts",
+						control: { type: "toggle", key: "lockCardsOnBreak" },
+					},
+					{
+						name: "Auto-start breaks",
+						desc: "Automatically start the break countdown when a focus session finishes",
+						control: { type: "toggle", key: "autoStartBreaks" },
+					},
+					{
+						name: "Auto-start focus sessions",
+						desc: "Automatically start the next focus countdown when a break finishes",
+						control: { type: "toggle", key: "autoStartWork" },
+					},
+					{
+						name: "Play sound on phase completion",
+						desc: "Play a soft chime when a focus or break timer finishes",
+						aliases: ["chime", "audio"],
+						control: { type: "toggle", key: "playSound" },
+					},
+				],
+			},
+			{
+				type: "group",
+				heading: "Mobile experience",
+				items: [
+					{
+						name: "Enable mobile haptic feedback",
+						desc: "Vibrate gently on card flip, ratings, and timer completion",
+						aliases: ["vibrate", "vibration"],
+						control: { type: "toggle", key: "enableHaptics" },
+					},
+					{
+						name: "Compact timer on mobile",
+						desc: "Collapse the Pomodoro banner into a space-saving bar on mobile to maximize card viewing area",
+						control: { type: "toggle", key: "compactMobileTimer" },
+					},
+				],
+			},
+			{
+				type: "group",
+				heading: "Flashcard syntax and storage",
+				items: [
+					{
+						name: "Default flashcard note",
+						desc: "Default Markdown file where cards created from the modal are saved when no note is active",
+						control: {
+							type: "text",
+							key: "defaultFlashcardNote",
+							placeholder: "Flashcards.md",
+						},
+					},
+					{
+						name: "Default deck name",
+						desc: "Deck assigned to flashcards without an explicit #deck/... tag",
+						control: { type: "text", key: "defaultDeck", placeholder: "General" },
+					},
+					{
+						name: "Single-line separator",
+						desc: "Separator between Question and Answer on a single line",
+						control: {
+							type: "text",
+							key: "inlineSeparator",
+							placeholder: "::",
+							validate: nonEmpty,
+						},
+					},
+					{
+						name: "Bidirectional single-line separator",
+						desc: "Separator that generates both forward and reverse flashcards from one line",
+						control: {
+							type: "text",
+							key: "bidirectionalSeparator",
+							placeholder: ":::",
+							validate: nonEmpty,
+						},
+					},
+					{
+						name: "Multi-line separator",
+						desc: "Standalone line separating multi-line question and answer blocks",
+						control: {
+							type: "text",
+							key: "multilineSeparator",
+							placeholder: "?",
+							validate: nonEmpty,
+						},
+					},
+				],
+			},
+			{
+				type: "group",
+				heading: "Study statistics and maintenance",
+				items: [
+					{
+						name: "Lifetime study overview",
+						aliases: ["rescan", "statistics", "streak"],
+						render: (setting) => this.renderStatsRow(setting),
+					},
+				],
+			},
+		];
+	}
+
+	getControlValue(key: string): unknown {
+		return this.plugin.settings[key as SettingKey];
+	}
+
+	async setControlValue(key: string, value: unknown): Promise<void> {
+		const k = key as SettingKey;
+		let next = value;
+		if (typeof next === "string") {
+			next = next.trim() || TEXT_FALLBACKS[k] || next;
+		}
+		(this.plugin.settings as unknown as Record<string, unknown>)[k] = next;
+		await this.plugin.savePluginData();
+
+		if (POMODORO_KEYS.has(k)) {
+			this.plugin.pomodoro.updateSettings(this.plugin.settings);
+		}
+		if (VIEW_KEYS.has(k)) {
+			this.plugin.refreshStudyViews();
+		}
+	}
+
+	/**
+	 * Fallback for Obsidian < 1.13.0, which doesn't render
+	 * `getSettingDefinitions()`. Renders the same definitions imperatively.
+	 */
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		new Setting(containerEl).setName("Pomodoro timer").setHeading();
+		for (const item of this.getSettingDefinitions()) {
+			if ("type" in item && item.type === "group") {
+				this.renderGroupFallback(containerEl, item);
+			}
+		}
+	}
 
-		new Setting(containerEl)
-			.setName("Focus session duration (minutes)")
-			.setDesc("Duration of each Pomodoro work interval (default: 25)")
-			.addText((text) =>
-				text
-					.setPlaceholder("25")
-					.setValue(String(this.plugin.settings.workDuration))
-					.onChange(async (value) => {
-						const parsed = parseInt(value, 10);
-						if (!isNaN(parsed) && parsed > 0 && parsed <= 180) {
-							this.plugin.settings.workDuration = parsed;
-							await this.plugin.savePluginData();
-							this.plugin.pomodoro.updateSettings(this.plugin.settings);
-						}
-					})
-			);
+	private renderGroupFallback(
+		containerEl: HTMLElement,
+		group: SettingDefinitionGroup<SettingKey>
+	): void {
+		if (group.heading) {
+			new Setting(containerEl).setName(group.heading).setHeading();
+		}
+		for (const def of group.items ?? []) {
+			if ("type" in def) continue; // nested pages aren't used here
+			this.renderDefinitionFallback(containerEl, def);
+		}
+	}
 
-		new Setting(containerEl)
-			.setName("Short break duration (minutes)")
-			.setDesc("Duration of short breaks between focus sessions (default: 5)")
-			.addText((text) =>
-				text
-					.setPlaceholder("5")
-					.setValue(String(this.plugin.settings.shortBreakDuration))
-					.onChange(async (value) => {
-						const parsed = parseInt(value, 10);
-						if (!isNaN(parsed) && parsed > 0 && parsed <= 60) {
-							this.plugin.settings.shortBreakDuration = parsed;
-							await this.plugin.savePluginData();
-							this.plugin.pomodoro.updateSettings(this.plugin.settings);
-						}
-					})
-			);
+	private renderDefinitionFallback(
+		containerEl: HTMLElement,
+		def: SettingDefinition<SettingKey>
+	): void {
+		const setting = new Setting(containerEl).setName(def.name);
+		if (def.desc) setting.setDesc(def.desc);
 
-		new Setting(containerEl)
-			.setName("Long break duration (minutes)")
-			.setDesc("Duration of long breaks after a full cycle (default: 15)")
-			.addText((text) =>
-				text
-					.setPlaceholder("15")
-					.setValue(String(this.plugin.settings.longBreakDuration))
-					.onChange(async (value) => {
-						const parsed = parseInt(value, 10);
-						if (!isNaN(parsed) && parsed > 0 && parsed <= 120) {
-							this.plugin.settings.longBreakDuration = parsed;
-							await this.plugin.savePluginData();
-							this.plugin.pomodoro.updateSettings(this.plugin.settings);
-						}
-					})
-			);
+		if (def.render) {
+			// Our render callbacks only use the Setting row; SettingGroup is 1.13+.
+			def.render(setting, undefined as never);
+			return;
+		}
+		const control = def.control;
+		if (!control) return;
 
-		new Setting(containerEl)
-			.setName("Long break interval")
-			.setDesc("Number of focus sessions before triggering a long break")
-			.addText((text) =>
-				text
-					.setPlaceholder("4")
-					.setValue(String(this.plugin.settings.longBreakInterval))
-					.onChange(async (value) => {
-						const parsed = parseInt(value, 10);
-						if (!isNaN(parsed) && parsed >= 1 && parsed <= 12) {
-							this.plugin.settings.longBreakInterval = parsed;
-							await this.plugin.savePluginData();
-							this.plugin.pomodoro.updateSettings(this.plugin.settings);
-						}
-					})
-			);
+		switch (control.type) {
+			case "toggle":
+				setting.addToggle((toggle) =>
+					toggle
+						.setValue(Boolean(this.getControlValue(control.key)))
+						.onChange((value) => this.setControlValue(control.key, value))
+				);
+				break;
+			case "number":
+				setting.addText((text) => {
+					text.inputEl.type = "number";
+					text
+						.setPlaceholder(control.placeholder ?? "")
+						.setValue(this.textValue(control.key))
+						.onChange(async (raw) => {
+							const value = Number(raw);
+							if (raw.trim() === "" || control.validate?.(value)) return;
+							await this.setControlValue(control.key, value);
+						});
+				});
+				break;
+			case "text":
+				setting.addText((text) =>
+					text
+						.setPlaceholder(control.placeholder ?? "")
+						.setValue(this.textValue(control.key))
+						.onChange(async (value) => {
+							if (control.validate?.(value)) return;
+							await this.setControlValue(control.key, value);
+						})
+				);
+				break;
+		}
+	}
 
-		new Setting(containerEl)
-			.setName("Lock flashcards during breaks")
-			.setDesc(
-				"Automatically pause flashcard reviews with a rest screen when a break starts"
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.lockCardsOnBreak)
-					.onChange(async (value) => {
-						this.plugin.settings.lockCardsOnBreak = value;
-						await this.plugin.savePluginData();
-						this.plugin.refreshStudyViews();
-					})
-			);
+	private textValue(key: SettingKey): string {
+		const value = this.plugin.settings[key];
+		return typeof value === "string" || typeof value === "number" ? String(value) : "";
+	}
 
-		new Setting(containerEl)
-			.setName("Auto-start breaks")
-			.setDesc(
-				"Automatically start the break countdown when a focus session finishes"
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.autoStartBreaks)
-					.onChange(async (value) => {
-						this.plugin.settings.autoStartBreaks = value;
-						await this.plugin.savePluginData();
-					})
-			);
-
-		new Setting(containerEl)
-			.setName("Auto-start focus sessions")
-			.setDesc(
-				"Automatically start the next focus countdown when a break finishes"
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.autoStartWork)
-					.onChange(async (value) => {
-						this.plugin.settings.autoStartWork = value;
-						await this.plugin.savePluginData();
-					})
-			);
-
-		new Setting(containerEl)
-			.setName("Play sound on phase completion")
-			.setDesc("Play a soft chime when a focus or break timer finishes")
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.playSound)
-					.onChange(async (value) => {
-						this.plugin.settings.playSound = value;
-						await this.plugin.savePluginData();
-					})
-			);
-
-		new Setting(containerEl).setName("Mobile experience").setHeading();
-
-		new Setting(containerEl)
-			.setName("Enable mobile haptic feedback")
-			.setDesc("Vibrate gently on card flip, ratings, and timer completion")
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.enableHaptics)
-					.onChange(async (value) => {
-						this.plugin.settings.enableHaptics = value;
-						await this.plugin.savePluginData();
-					})
-			);
-
-		new Setting(containerEl)
-			.setName("Compact timer on mobile")
-			.setDesc(
-				"Collapse the Pomodoro banner into a space-saving bar on mobile to maximize card viewing area"
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.compactMobileTimer)
-					.onChange(async (value) => {
-						this.plugin.settings.compactMobileTimer = value;
-						await this.plugin.savePluginData();
-						this.plugin.refreshStudyViews();
-					})
-			);
-
-		new Setting(containerEl).setName("Flashcard syntax and storage").setHeading();
-
-		new Setting(containerEl)
-			.setName("Default flashcard note")
-			.setDesc(
-				"Default Markdown file where cards created from the modal are saved when no note is active"
-			)
-			.addText((text) =>
-				text
-					.setPlaceholder("Flashcards.md")
-					.setValue(this.plugin.settings.defaultFlashcardNote)
-					.onChange(async (value) => {
-						this.plugin.settings.defaultFlashcardNote =
-							value.trim() || "Flashcards.md";
-						await this.plugin.savePluginData();
-					})
-			);
-
-		new Setting(containerEl)
-			.setName("Default deck name")
-			.setDesc("Deck assigned to flashcards without an explicit #deck/... tag")
-			.addText((text) =>
-				text
-					.setPlaceholder("General")
-					.setValue(this.plugin.settings.defaultDeck)
-					.onChange(async (value) => {
-						this.plugin.settings.defaultDeck = value.trim() || "General";
-						await this.plugin.savePluginData();
-					})
-			);
-
-		new Setting(containerEl)
-			.setName("Single-line separator")
-			.setDesc("Separator between Question and Answer on a single line")
-			.addText((text) =>
-				text
-					.setPlaceholder("::")
-					.setValue(this.plugin.settings.inlineSeparator)
-					.onChange(async (value) => {
-						if (value.trim()) {
-							this.plugin.settings.inlineSeparator = value.trim();
-							await this.plugin.savePluginData();
-						}
-					})
-			);
-
-		new Setting(containerEl)
-			.setName("Bidirectional single-line separator")
-			.setDesc(
-				"Separator that generates both forward and reverse flashcards from one line"
-			)
-			.addText((text) =>
-				text
-					.setPlaceholder(":::")
-					.setValue(this.plugin.settings.bidirectionalSeparator)
-					.onChange(async (value) => {
-						if (value.trim()) {
-							this.plugin.settings.bidirectionalSeparator = value.trim();
-							await this.plugin.savePluginData();
-						}
-					})
-			);
-
-		new Setting(containerEl)
-			.setName("Multi-line separator")
-			.setDesc(
-				"Standalone line separating multi-line question and answer blocks"
-			)
-			.addText((text) =>
-				text
-					.setPlaceholder("?")
-					.setValue(this.plugin.settings.multilineSeparator)
-					.onChange(async (value) => {
-						if (value.trim()) {
-							this.plugin.settings.multilineSeparator = value.trim();
-							await this.plugin.savePluginData();
-						}
-					})
-			);
-
-		new Setting(containerEl).setName("Study statistics and maintenance").setHeading();
-
+	private statsSummary(): string {
 		const stats = this.plugin.stats;
-		new Setting(containerEl)
-			.setName("Lifetime study overview")
-			.setDesc(
-				`${stats.totalPomodoros} Pomodoros (${stats.totalFocusMinutes} mins) · ${stats.totalCardsReviewed} card reviews · ${stats.dailyStreak}-day streak`
-			)
-			.addButton((btn) =>
-				btn.setButtonText("Rescan vault now").onClick(async () => {
-					await this.plugin.scanVaultCards();
-					this.plugin.refreshStudyViews();
-					new Notice(`Scanned ${this.plugin.cards.length} flashcards.`);
-				})
-			);
+		return `${stats.totalPomodoros} Pomodoros (${stats.totalFocusMinutes} mins) · ${stats.totalCardsReviewed} card reviews · ${stats.dailyStreak}-day streak`;
+	}
+
+	private renderStatsRow(setting: Setting): void {
+		setting.setDesc(this.statsSummary()).addButton((btn) =>
+			btn.setButtonText("Rescan vault now").onClick(async () => {
+				await this.plugin.scanVaultCards();
+				this.plugin.refreshStudyViews();
+				setting.setDesc(this.statsSummary());
+				new Notice(`Scanned ${this.plugin.cards.length} flashcards.`);
+			})
+		);
 	}
 }

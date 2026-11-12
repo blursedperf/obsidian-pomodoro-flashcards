@@ -13,7 +13,7 @@ export class PomodoroFlashcardsSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		containerEl.createEl("h2", { text: "Pomodoro timer" });
+		new Setting(containerEl).setName("Pomodoro timer").setHeading();
 
 		new Setting(containerEl)
 			.setName("Focus session duration (minutes)")
@@ -138,7 +138,7 @@ export class PomodoroFlashcardsSettingTab extends PluginSettingTab {
 					})
 			);
 
-		containerEl.createEl("h2", { text: "Mobile experience" });
+		new Setting(containerEl).setName("Mobile experience").setHeading();
 
 		new Setting(containerEl)
 			.setName("Enable mobile haptic feedback")
@@ -167,7 +167,7 @@ export class PomodoroFlashcardsSettingTab extends PluginSettingTab {
 					})
 			);
 
-		containerEl.createEl("h2", { text: "Flashcard syntax and storage" });
+		new Setting(containerEl).setName("Flashcard syntax and storage").setHeading();
 
 		new Setting(containerEl)
 			.setName("Default flashcard note")
@@ -247,7 +247,7 @@ export class PomodoroFlashcardsSettingTab extends PluginSettingTab {
 					})
 			);
 
-		containerEl.createEl("h2", { text: "Study statistics and maintenance" });
+		new Setting(containerEl).setName("Study statistics and maintenance").setHeading();
 
 		const stats = this.plugin.stats;
 		new Setting(containerEl)

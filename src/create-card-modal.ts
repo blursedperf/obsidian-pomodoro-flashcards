@@ -75,11 +75,7 @@ export class CreateFlashcardModal extends Modal {
 				cls: "mod-cta pomo-fc-header-save-btn",
 				attr: { type: "button", title: "Save flashcard" },
 			});
-
-			const closeBtn = this.modalEl.querySelector<HTMLElement>(".modal-close-button");
-			if (closeBtn) {
-				closeBtn.style.display = "none";
-			}
+			// The native close button is hidden on mobile via styles.css
 		} else {
 			headerBar.createEl("h3", {
 				text: "Create flashcard",
@@ -227,10 +223,10 @@ export class CreateFlashcardModal extends Modal {
 		});
 
 		// Keyboard shortcut: Ctrl/Cmd+Enter saves & adds another
-		const handleKeyDown = async (e: KeyboardEvent) => {
+		const handleKeyDown = (e: KeyboardEvent) => {
 			if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
 				e.preventDefault();
-				await this.saveCard(true, qTextarea, aTextarea);
+				void this.saveCard(true, qTextarea, aTextarea);
 			}
 		};
 		qTextarea.addEventListener("keydown", handleKeyDown);
@@ -238,8 +234,8 @@ export class CreateFlashcardModal extends Modal {
 
 		// Wire mobile header quick-save
 		if (headerSaveBtn) {
-			headerSaveBtn.addEventListener("click", async () => {
-				await this.saveCard(false, qTextarea, aTextarea);
+			headerSaveBtn.addEventListener("click", () => {
+				void this.saveCard(false, qTextarea, aTextarea);
 			});
 		}
 
@@ -250,16 +246,16 @@ export class CreateFlashcardModal extends Modal {
 			text: "Save flashcard",
 			cls: "mod-cta pomo-fc-modal-primary-btn",
 		});
-		saveCloseBtn.addEventListener("click", async () => {
-			await this.saveCard(false, qTextarea, aTextarea);
+		saveCloseBtn.addEventListener("click", () => {
+			void this.saveCard(false, qTextarea, aTextarea);
 		});
 
 		const addAnotherBtn = footer.createEl("button", {
 			text: Platform.isMobile ? "Save & add another" : "Save and add another",
 			cls: "pomo-fc-modal-secondary-btn",
 		});
-		addAnotherBtn.addEventListener("click", async () => {
-			await this.saveCard(true, qTextarea, aTextarea);
+		addAnotherBtn.addEventListener("click", () => {
+			void this.saveCard(true, qTextarea, aTextarea);
 		});
 
 		if (Platform.isMobile) {
@@ -400,23 +396,8 @@ export class CreateFlashcardModal extends Modal {
 			}
 		}
 
-		if (this.containerEl) {
-			if (kbHeight > 0) {
-				this.containerEl.style.bottom = `${kbHeight}px`;
-				this.containerEl.style.height = `calc(100vh - ${kbHeight}px)`;
-				this.containerEl.style.maxHeight = `calc(100vh - ${kbHeight}px)`;
-			} else {
-				this.containerEl.style.bottom = "0px";
-				this.containerEl.style.height = "100vh";
-				this.containerEl.style.maxHeight = "100vh";
-			}
-		}
-
-		if (this.modalEl) {
-			this.modalEl.style.transform = "none";
-			this.modalEl.style.height = "100%";
-			this.modalEl.style.maxHeight = "100%";
-		}
+		// Container/dialog sizing lives in styles.css, driven by this variable
+		this.containerEl?.setCssProps({ "--keyboard-height": `${kbHeight}px` });
 	}
 
 	private scrollToElement(

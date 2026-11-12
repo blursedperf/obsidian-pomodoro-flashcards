@@ -322,12 +322,13 @@ export class FlashcardStudyView extends ItemView {
 				"aria-label": "Rescan vault",
 			},
 		});
-		rescanBtn.addEventListener("click", async () => {
-			await this.plugin.scanVaultCards();
-			this.refreshFromVault();
-			new Notice(
-				`Scanned ${this.plugin.cards.length} flashcards across vault.`
-			);
+		rescanBtn.addEventListener("click", () => {
+			void this.plugin.scanVaultCards().then(() => {
+				this.refreshFromVault();
+				new Notice(
+					`Scanned ${this.plugin.cards.length} flashcards across vault.`
+				);
+			});
 		});
 
 		// 3. Card Stage Container

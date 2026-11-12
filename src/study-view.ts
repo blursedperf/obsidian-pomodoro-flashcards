@@ -101,7 +101,7 @@ export class FlashcardStudyView extends ItemView {
 			}
 		);
 
-		this.registerDomEvent(window, "keydown", (evt: KeyboardEvent) =>
+		this.registerDomEvent(this.containerEl.win, "keydown", (evt: KeyboardEvent) =>
 			this.handleKeyDown(evt)
 		);
 	}
@@ -143,31 +143,25 @@ export class FlashcardStudyView extends ItemView {
 		const pomoLeft = mainRow.createDiv({ cls: "pomo-fc-banner-left" });
 		const ringWrapper = pomoLeft.createDiv({ cls: "pomo-fc-ring-wrapper" });
 
-		const svgNS = "http://www.w3.org/2000/svg";
-		const svg = document.createElementNS(svgNS, "svg");
-		svg.setAttribute("class", "pomo-fc-ring-svg");
-		svg.setAttribute("viewBox", "0 0 68 68");
-
-		const bgCircle = document.createElementNS(svgNS, "circle");
-		bgCircle.setAttribute("class", "pomo-fc-ring-bg");
-		bgCircle.setAttribute("cx", "34");
-		bgCircle.setAttribute("cy", "34");
-		bgCircle.setAttribute("r", String(FlashcardStudyView.RING_RADIUS));
-		svg.appendChild(bgCircle);
-
-		const fgCircle = document.createElementNS(svgNS, "circle");
-		fgCircle.setAttribute("class", "pomo-fc-ring-fg");
-		fgCircle.setAttribute("cx", "34");
-		fgCircle.setAttribute("cy", "34");
-		fgCircle.setAttribute("r", String(FlashcardStudyView.RING_RADIUS));
-		fgCircle.setAttribute(
-			"stroke-dasharray",
-			String(FlashcardStudyView.RING_CIRCUMFERENCE)
-		);
-		fgCircle.setAttribute("stroke-dashoffset", "0");
-		svg.appendChild(fgCircle);
-		this.timerRingCircleEl = fgCircle;
-		ringWrapper.appendChild(svg);
+		const r = String(FlashcardStudyView.RING_RADIUS);
+		const svg = ringWrapper.createSvg("svg", {
+			cls: "pomo-fc-ring-svg",
+			attr: { viewBox: "0 0 68 68" },
+		});
+		svg.createSvg("circle", {
+			cls: "pomo-fc-ring-bg",
+			attr: { cx: "34", cy: "34", r },
+		});
+		this.timerRingCircleEl = svg.createSvg("circle", {
+			cls: "pomo-fc-ring-fg",
+			attr: {
+				cx: "34",
+				cy: "34",
+				r,
+				"stroke-dasharray": String(FlashcardStudyView.RING_CIRCUMFERENCE),
+				"stroke-dashoffset": "0",
+			},
+		});
 
 		const timeInfo = pomoLeft.createDiv({ cls: "pomo-fc-time-info" });
 		const phaseRow = timeInfo.createDiv({ cls: "pomo-fc-phase-row" });

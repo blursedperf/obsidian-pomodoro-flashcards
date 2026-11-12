@@ -14,6 +14,7 @@ export class PomodoroTimer {
 	private listeners: Set<PomodoroListener> = new Set();
 	private onWorkSessionComplete?: (focusMinutes: number) => void;
 	private boundVisibilityHandler: () => void;
+	private visibilityDoc: Document;
 
 	constructor(
 		settings: PluginSettings,
@@ -33,13 +34,13 @@ export class PomodoroTimer {
 
 		// Keep timer accurate when returning from background or screen lock on iOS / iPadOS
 		this.boundVisibilityHandler = () => {
-			if (document.visibilityState === "visible" && this.state.isRunning) {
+			if (this.visibilityDoc.visibilityState === "visible" && this.state.isRunning) {
 				this.tick();
 			}
 		};
-		if (typeof document !== "undefined") {
-			document.addEventListener("visibilitychange", this.boundVisibilityHandler);
-		}
+		// The timer is app-wide; watch the window it was created in (the main window).
+		this.visibilityDoc = activeDocument;
+		this.visibilityDoc.addEventListener("visibilitychange", this.boundVisibilityHandler);
 	}
 
 	public subscribe(listener: PomodoroListener): () => void {
@@ -134,12 +135,10 @@ export class PomodoroTimer {
 
 	public destroy(): void {
 		this.clearTimer();
-		if (typeof document !== "undefined") {
-			document.removeEventListener(
-				"visibilitychange",
-				this.boundVisibilityHandler
-			);
-		}
+		this.visibilityDoc.removeEventListener(
+			"visibilitychange",
+			this.boundVisibilityHandler
+		);
 		if (this.audioCtx) {
 			void this.audioCtx.close().catch(() => {});
 			this.audioCtx = null;

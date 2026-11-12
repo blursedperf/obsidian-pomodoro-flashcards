@@ -295,31 +295,19 @@ export class CreateFlashcardModal extends Modal {
 			this.resizeHandler = () => {
 				this.updateMobileLayout();
 			};
-			window.addEventListener("resize", this.resizeHandler);
-			if (typeof window !== "undefined" && window.visualViewport) {
-				window.visualViewport.addEventListener("resize", this.resizeHandler);
-			}
+			const { win, doc } = this.containerEl;
+			win.addEventListener("resize", this.resizeHandler);
+			win.visualViewport?.addEventListener("resize", this.resizeHandler);
 
 			// Watch for --keyboard-height changes set on documentElement or body by Obsidian/Capacitor
-			if (
-				typeof MutationObserver !== "undefined" &&
-				typeof document !== "undefined"
-			) {
-				this.observer = new MutationObserver(() => {
-					this.updateMobileLayout();
+			this.observer = new MutationObserver(() => {
+				this.updateMobileLayout();
+			});
+			for (const target of [doc.documentElement, doc.body]) {
+				this.observer.observe(target, {
+					attributes: true,
+					attributeFilter: ["style", "class"],
 				});
-				if (document.documentElement) {
-					this.observer.observe(document.documentElement, {
-						attributes: true,
-						attributeFilter: ["style", "class"],
-					});
-				}
-				if (document.body) {
-					this.observer.observe(document.body, {
-						attributes: true,
-						attributeFilter: ["style", "class"],
-					});
-				}
 			}
 
 			// Prevent page-level rubber-band dragging when touching outside scrollBody
@@ -352,25 +340,26 @@ export class CreateFlashcardModal extends Modal {
 		if (!Platform.isMobile) return 0;
 
 		// 1. Check Obsidian's CSS variable --keyboard-height (set by Capacitor Keyboard plugin)
-		if (typeof document !== "undefined") {
-			const docVal = getComputedStyle(document.documentElement)
-				.getPropertyValue("--keyboard-height")
-				.trim();
-			const bodyVal = getComputedStyle(document.body)
-				.getPropertyValue("--keyboard-height")
-				.trim();
-			const rawVal = docVal || bodyVal;
-			if (rawVal) {
-				const parsed = parseFloat(rawVal);
-				if (!isNaN(parsed) && parsed > 0) {
-					return parsed;
-				}
+		const { win, doc } = this.containerEl;
+		const docVal = win
+			.getComputedStyle(doc.documentElement)
+			.getPropertyValue("--keyboard-height")
+			.trim();
+		const bodyVal = win
+			.getComputedStyle(doc.body)
+			.getPropertyValue("--keyboard-height")
+			.trim();
+		const rawVal = docVal || bodyVal;
+		if (rawVal) {
+			const parsed = parseFloat(rawVal);
+			if (!isNaN(parsed) && parsed > 0) {
+				return parsed;
 			}
 		}
 
 		// 2. Check visualViewport diff vs window.innerHeight (for Android or engines that resize visualViewport)
-		if (typeof window !== "undefined" && window.visualViewport) {
-			const diff = window.innerHeight - window.visualViewport.height;
+		if (win.visualViewport) {
+			const diff = win.innerHeight - win.visualViewport.height;
 			if (diff > 80) {
 				return diff;
 			}
@@ -385,15 +374,12 @@ export class CreateFlashcardModal extends Modal {
 		const kbHeight = this.getKeyboardHeight();
 
 		// Keep root page scrolled to 0 so WebKit never pans the window
-		if (typeof window !== "undefined") {
-			if (window.scrollY !== 0 || window.scrollX !== 0) {
-				window.scrollTo(0, 0);
-			}
+		const { win, doc } = this.containerEl;
+		if (win.scrollY !== 0 || win.scrollX !== 0) {
+			win.scrollTo(0, 0);
 		}
-		if (typeof document !== "undefined" && document.body) {
-			if (document.body.scrollTop !== 0) {
-				document.body.scrollTop = 0;
-			}
+		if (doc.body.scrollTop !== 0) {
+			doc.body.scrollTop = 0;
 		}
 
 		// Container/dialog sizing lives in styles.css, driven by this variable
@@ -422,13 +408,9 @@ export class CreateFlashcardModal extends Modal {
 
 	onClose(): void {
 		if (this.resizeHandler) {
-			if (typeof window !== "undefined" && window.visualViewport) {
-				window.visualViewport.removeEventListener(
-					"resize",
-					this.resizeHandler
-				);
-			}
-			window.removeEventListener("resize", this.resizeHandler);
+			const { win } = this.containerEl;
+			win.visualViewport?.removeEventListener("resize", this.resizeHandler);
+			win.removeEventListener("resize", this.resizeHandler);
 			this.resizeHandler = null;
 		}
 

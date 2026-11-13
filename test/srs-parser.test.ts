@@ -13,6 +13,7 @@ import { DEFAULT_SETTINGS } from "../src/types.ts";
 import { carryOverEditedCards, remapRenamedCards } from "../src/history.ts";
 import { generateCardId } from "../src/srs.ts";
 import { buildClozeCards, findClozes, nextClozeNumber } from "../src/cloze.ts";
+import { caseFieldFor, cleanCaseName, parseFrontmatter, parseLineField } from "../src/cases.ts";
 
 const now = 1_700_000_000_000;
 
@@ -177,7 +178,7 @@ const pair = "a :: b";
 			"Ratio :: the neighbour principle [court:: HL]",
 		].join("\n"),
 		"Cases/Torts.md",
-		DEFAULT_SETTINGS,
+		{ ...DEFAULT_SETTINGS, caseCards: false },
 		{},
 		now
 	);
@@ -326,6 +327,140 @@ const pair = "a :: b";
 	const parsed = parseMarkdownCards("The elements: {{c1::duty of care}}, {{c2::breach}}", "T.md", DEFAULT_SETTINGS, metadata, now);
 	assert.equal(carryOverEditedCards(previous, parsed, metadata), true);
 	assert.deepEqual(parsed.map((c) => c.srs.efactor), [2, 2.1]);
+}
+
+// 12. Case cards from a case line (as Inline Schema Expander writes it)
+{
+	const md = [
+		"## Negligence #deck/Torts",
+		"- [[Donoghue v Stevenson]] #case-law [court:: HL] [year:: 1932] [ratio:: A duty is owed to your neighbour] [facts:: Snail in a ginger beer bottle]",
+		"## Mabo v Queensland (No 2)",
+		"#case-law [court:: HCA] [year:: 1992] [ratio:: ]",
+		"#case-law [court:: ] [year:: ] [ratio:: Native title survived annexation]",
+		"Unfilled #case-law [court:: ] [year:: ] [ratio:: ]",
+	].join("\n");
+	const cards = parseMarkdownCards(md, "Law/Torts.md", DEFAULT_SETTINGS, {}, now);
+	assert.deepEqual(
+		cards.map((c) => [c.caseCard, c.question, c.answer, c.deck, c.lineStart]),
+		[
+			["ratio", "What is the ratio of *[[Donoghue v Stevenson]]*?", "A duty is owed to your neighbour", "Torts", 1],
+			["facts", "What are the facts of *[[Donoghue v Stevenson]]*?", "Snail in a ginger beer bottle", "Torts", 1],
+			["details", "Which court decided *[[Donoghue v Stevenson]]*, and when?", "HL, 1932", "Torts", 1],
+			[
+				"ratio-reverse",
+				"Which case established this principle?\n\nA duty is owed to your neighbour",
+				"*[[Donoghue v Stevenson]]* (HL, 1932)",
+				"Torts",
+				1,
+			],
+			[
+				"facts-reverse",
+				"Which case had these facts?\n\nSnail in a ginger beer bottle",
+				"*[[Donoghue v Stevenson]]* (HL, 1932)",
+				"Torts",
+				1,
+			],
+			// A tag with no name on the line uses the heading above it
+			["details", "Which court decided *Mabo v Queensland (No 2)*, and when?", "HCA, 1992", "Torts", 3],
+			["ratio", "What is the ratio of *Mabo v Queensland (No 2)*?", "Native title survived annexation", "Torts", 4],
+			[
+				"ratio-reverse",
+				"Which case established this principle?\n\nNative title survived annexation",
+				"*Mabo v Queensland (No 2)*",
+				"Torts",
+				4,
+			],
+		]
+	);
+
+	const forwardOnly = parseMarkdownCards(md, "a.md", { ...DEFAULT_SETTINGS, reverseCaseCards: false }, {}, now);
+	assert.ok(forwardOnly.every((c) => !c.caseCard?.endsWith("reverse")));
+	assert.equal(parseMarkdownCards(md, "a.md", { ...DEFAULT_SETTINGS, caseCards: false }, {}, now).length, 0);
+	// A custom tag; #case-law-notes is a different tag
+	assert.equal(parseMarkdownCards("X v Y #case-law-notes [ratio:: r]", "a.md", DEFAULT_SETTINGS, {}, now).length, 0);
+	assert.equal(
+		parseMarkdownCards("X v Y #case [ratio:: r]", "a.md", { ...DEFAULT_SETTINGS, caseTag: "case" }, {}, now)[0].question,
+		"What is the ratio of *X v Y*?"
+	);
+}
+
+// 13. Case cards from a case note
+{
+	const md = [
+		"---",
+		"tags: [case-law, torts]",
+		"citation: \"[1932] AC 562\"",
+		"court: House of Lords",
+		"ratio: >",
+		"  A manufacturer owes a duty",
+		"  to the ultimate consumer.",
+		"---",
+		"# Donoghue v Stevenson",
+		"Held:: Appeal allowed",
+		"- **Issue**:: Whether a manufacturer owes a duty to a consumer",
+		"Ratio:: Body ratio wins over the property",
+		"Judges :: Lord Atkin",
+	].join("\n");
+	const cards = parseMarkdownCards(md, "Cases/Donoghue v Stevenson.md", DEFAULT_SETTINGS, {}, now);
+	assert.deepEqual(
+		cards.map((c) => [c.caseCard ?? null, c.question, c.answer, c.lineStart]),
+		[
+			// "Judges :: Lord Atkin" has a space before :: so it stays a basic card
+			[null, "Judges", "Lord Atkin", 12],
+			["ratio", "What is the ratio of *Donoghue v Stevenson*?", "Body ratio wins over the property", 11],
+			["held", "What was held in *Donoghue v Stevenson*?", "Appeal allowed", 9],
+			["issue", "What was the issue in *Donoghue v Stevenson*?", "Whether a manufacturer owes a duty to a consumer", 10],
+			["details", "What is the citation for *Donoghue v Stevenson*?", "[1932] AC 562", 0],
+			[
+				"ratio-reverse",
+				"Which case established this principle?\n\nBody ratio wins over the property",
+				"*Donoghue v Stevenson* ([1932] AC 562)",
+				11,
+			],
+		]
+	);
+
+	// Frontmatter-only case note, tagged with a list; folded ratio
+	const fmOnly = parseMarkdownCards(
+		"---\ntags:\n  - case-law\nratio: >\n  A manufacturer owes a duty\n  to the ultimate consumer.\nyear: 1932\n---\nNotes.",
+		"Cases/Donoghue.md",
+		{ ...DEFAULT_SETTINGS, reverseCaseCards: false },
+		{},
+		now
+	);
+	assert.deepEqual(
+		fmOnly.map((c) => [c.question, c.answer]),
+		[
+			["What is the ratio of *Donoghue*?", "A manufacturer owes a duty to the ultimate consumer."],
+			["When was *Donoghue* decided?", "1932"],
+		]
+	);
+
+	// A line that is just the tag marks the note as a case note; field lines elsewhere are ignored
+	assert.equal(parseMarkdownCards("#case-law\nratio:: r", "X v Y.md", DEFAULT_SETTINGS, {}, now)[0].question, "What is the ratio of *X v Y*?");
+	assert.equal(parseMarkdownCards("ratio:: r\nheld:: h", "Not a case.md", DEFAULT_SETTINGS, {}, now).length, 0);
+}
+
+// 14. Case helpers
+{
+	assert.equal(caseFieldFor("Ratio decidendi"), "ratio");
+	assert.equal(caseFieldFor("material_facts"), "facts");
+	assert.equal(caseFieldFor("judges"), null);
+	assert.deepEqual(parseLineField("- **Held**:: allowed"), { key: "Held", value: "allowed" });
+	assert.equal(parseLineField("Held :: allowed"), null);
+	assert.equal(cleanCaseName("- *R v Smith* #crim:"), "R v Smith");
+	assert.deepEqual(parseFrontmatter(["---", "a: 'x: y'", "b:", "c: [p, \"q\"]", "---"]).data, { a: "x: y", c: ["p", "q"] });
+}
+
+// 15. Case card history survives editing the case's name
+{
+	const before = "Donoghue #case-law [ratio:: neighbour] [year:: 1932]";
+	const previous = parseMarkdownCards(before, "T.md", DEFAULT_SETTINGS, {}, now);
+	const metadata: Record<string, ReturnType<typeof calculateSM2>> = {};
+	previous.forEach((c, i) => (metadata[c.id] = { ...calculateSM2(createDefaultSRSMetadata(now), "good", now), efactor: 2 + i / 10 }));
+	const parsed = parseMarkdownCards("Donoghue v Stevenson #case-law [ratio:: neighbour] [year:: 1932]", "T.md", DEFAULT_SETTINGS, metadata, now);
+	assert.equal(carryOverEditedCards(previous, parsed, metadata), true);
+	assert.deepEqual(parsed.map((c) => [c.caseCard, c.srs.efactor]), previous.map((c, i) => [c.caseCard, 2 + i / 10]));
 }
 
 console.log("All SRS & Parser tests passed!");

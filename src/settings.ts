@@ -27,6 +27,7 @@ const VIEW_KEYS = new Set<SettingKey>(["lockCardsOnBreak", "compactMobileTimer"]
 const TEXT_FALLBACKS: Partial<Record<SettingKey, string>> = {
 	defaultFlashcardNote: "Flashcards.md",
 	defaultDeck: "General",
+	caseTag: "#case-law",
 };
 
 function rangeValidator(min: number, max: number) {
@@ -188,6 +189,28 @@ export class PomodoroFlashcardsSettingTab extends PluginSettingTab {
 							placeholder: "?",
 							validate: nonEmpty,
 						},
+					},
+				],
+			},
+			{
+				type: "group",
+				heading: "Case cards",
+				items: [
+					{
+						name: "Generate case cards",
+						desc: "Make cards automatically from case-law fields (ratio, held, issue, facts, court, year, citation) on lines tagged with the case tag, or in notes tagged with it in their properties",
+						aliases: ["case law", "cases", "ratio"],
+						control: { type: "toggle", key: "caseCards" },
+					},
+					{
+						name: "Case tag",
+						desc: "Tag that marks a case line (Name #case-law [ratio:: ...]) or a case note",
+						control: { type: "text", key: "caseTag", placeholder: "#case-law" },
+					},
+					{
+						name: "Reverse case cards",
+						desc: "Also ask which case established a ratio, or which case had a set of facts",
+						control: { type: "toggle", key: "reverseCaseCards" },
 					},
 				],
 			},

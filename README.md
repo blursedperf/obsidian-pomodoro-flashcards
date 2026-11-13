@@ -40,6 +40,12 @@ Write flashcards naturally in any note without disrupting your writing flow:
   ```
   The text after a second `::` is a hint shown in the blank. Highlights can be clozes too (one card per `==highlight==`): turn on **Highlights are cloze deletions**, add `cloze: true` to a note's properties, or tag a paragraph `#cloze`. Use **Wrap selection in cloze deletion** to wrap selected text in the next free number, or **(same card as the last cloze)** to add it to the latest card.
 
+- **Automatic case cards** for studying law. Describe a case on one line (the format Inline Schema Expander writes):
+  ```markdown
+  Donoghue v Stevenson #case-law [court:: HL] [year:: 1932] [ratio:: A manufacturer owes a duty of care to the consumer]
+  ```
+  or in a case note tagged `case-law` in its properties, with fields in its properties or on `Field:: value` lines (`Ratio:: ...`, `- **Held**:: ...`). Recognised fields are `ratio` (or `principle`, `rule`), `held` (`holding`, `decision`, `outcome`), `issue`, `facts`, `court`, `year`, `citation` and `case`/`name`. Each filled-in field becomes a card (*What is the ratio of Donoghue v Stevenson?*, *What was held in...?*, *Which court decided...?*), and ratio and facts are also reversed (*Which case established this principle?*). The case name is the text on the line, then the `case` field, then the heading above the line, then the note's name. Empty fields are skipped, so a freshly expanded template makes no cards until you fill it in. Change the tag or turn off reverse cards under **Case cards** in settings.
+
 - **Flexible deck organization**: Organize cards into decks using frontmatter (`deck: Biology`), heading tags (`## Genetics #deck/Genetics`), or inline tags (`#deck/Algorithms`).
 
 - **History that follows your notes**: Review history is kept when you rename or move a note or folder, and when you edit a card's question.

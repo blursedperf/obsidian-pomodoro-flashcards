@@ -1,6 +1,20 @@
 import { Flashcard, PluginSettings, SRSMetadata } from "./types";
 import { createDefaultSRSMetadata, generateCardId } from "./srs";
 import { buildClozeCards, CLOZE_TAG_REGEX, hasClozes } from "./cloze";
+import {
+	CaseField,
+	CaseRecord,
+	bareTag,
+	buildCaseCards,
+	caseFieldFor,
+	cleanCaseName,
+	collectCaseFields,
+	frontmatterHasTag,
+	hasTag,
+	parseBracketFields,
+	parseFrontmatter,
+	parseLineField,
+} from "./cases";
 
 export interface RawParsedCard {
 	question: string;
@@ -9,6 +23,7 @@ export interface RawParsedCard {
 	lineStart: number;
 	lineEnd: number;
 	clozeGroup?: string;
+	caseCard?: string;
 }
 
 /** A Markdown ATX heading (`# Title` … `###### Title`), as opposed to a line that starts with a `#tag`. */
@@ -144,6 +159,30 @@ export function parseMarkdownCards(
 		(t.startsWith("#deck/") || t.startsWith("#flashcard/")) &&
 		extractInlineDeckAndCleanTags(t, flashcardTag).cleaned === "";
 	const isFence = (t: string) => t.startsWith("```") || t.startsWith("~~~");
+	// Case cards: a case note is tagged in its properties or has a line that is just the case tag
+	const caseTag = settings.caseTag || "#case-law";
+	const isCaseTagLine = (t: string) => t.toLowerCase() === "#" + bareTag(caseTag);
+	const frontmatter = settings.caseCards ? parseFrontmatter(lines).data : {};
+	const isCaseNote =
+		settings.caseCards &&
+		(frontmatterHasTag(frontmatter, caseTag) ||
+			lines.slice(contentStartLine).some((l) => isCaseTagLine(l.trim())));
+	const noteFileName = (sourcePath.split("/").pop() ?? sourcePath).replace(/\.md$/i, "");
+	const noteCase: CaseRecord = { name: "", fields: {}, lines: {}, defaultLine: 0 };
+	let lastHeading = "";
+	const pushCaseCards = (record: CaseRecord, deck: string) => {
+		for (const card of buildCaseCards(record, settings.reverseCaseCards)) {
+			rawCards.push({
+				question: card.question,
+				answer: card.answer,
+				deck,
+				lineStart: card.line,
+				lineEnd: card.line,
+				caseCard: card.kind,
+			});
+		}
+	};
+
 	/** Lines that make a paragraph a basic card, which takes precedence over clozes. */
 	const isBasicCardLine = (t: string) =>
 		/^[QA]:\s+/i.test(t) ||
@@ -177,6 +216,7 @@ export function parseMarkdownCards(
 			if (deckOverride) {
 				currentDeck = deckOverride;
 			}
+			lastHeading = cleanCaseName(trimmed.replace(/^#{1,6}\s*/, ""));
 			i++;
 			continue;
 		}
@@ -234,6 +274,39 @@ export function parseMarkdownCards(
 					});
 				}
 				i = end;
+				continue;
+			}
+		}
+
+		// Case cards from a case line: "Name #case-law [court:: HL] [year:: 1932] [ratio:: ...]"
+		if (settings.caseCards && hasTag(trimmed, caseTag)) {
+			const { fields: raw, rest } = parseBracketFields(trimmed);
+			const record: CaseRecord = { name: "", fields: {}, lines: {}, defaultLine: i };
+			collectCaseFields(raw, record.fields);
+			const hasContent = Object.keys(record.fields).some((f) => f !== "name");
+			if (hasContent) {
+				const { deckOverride } = extractInlineDeckAndCleanTags(trimmed, flashcardTag);
+				record.name = cleanCaseName(rest) || record.fields.name || lastHeading || noteFileName;
+				pushCaseCards(record, deckOverride || currentDeck);
+				i++;
+				continue;
+			}
+			if (isCaseTagLine(trimmed)) {
+				i++;
+				continue;
+			}
+		}
+
+		// Case note fields: "Ratio:: ..." lines (the :: directly after the key)
+		if (isCaseNote) {
+			const lineField = parseLineField(trimmed);
+			const field: CaseField | null = lineField ? caseFieldFor(lineField.key) : null;
+			if (lineField && field) {
+				if (lineField.value && !noteCase.fields[field]) {
+					noteCase.fields[field] = lineField.value;
+					noteCase.lines[field] = i;
+				}
+				i++;
 				continue;
 			}
 		}
@@ -391,6 +464,12 @@ export function parseMarkdownCards(
 		i++;
 	}
 
+	if (isCaseNote) {
+		collectCaseFields(frontmatter, noteCase.fields);
+		noteCase.name = cleanCaseName(noteCase.fields.name ?? "") || noteFileName;
+		pushCaseCards(noteCase, fileDeck);
+	}
+
 	// Convert raw parsed cards into Flashcard objects with SRS metadata
 	return rawCards.map((raw) => {
 		const id = generateCardId(sourcePath, raw.question);
@@ -405,6 +484,7 @@ export function parseMarkdownCards(
 			lineEnd: raw.lineEnd,
 			srs: existingSRS ? { ...existingSRS } : createDefaultSRSMetadata(now),
 			...(raw.clozeGroup ? { clozeGroup: raw.clozeGroup } : {}),
+			...(raw.caseCard ? { caseCard: raw.caseCard } : {}),
 		};
 	});
 }

@@ -34,6 +34,8 @@ export interface Flashcard {
 	srs: SRSMetadata;
 	/** Cloze cards only: the deletion group this card hides ("c1", "h2", ...) */
 	clozeGroup?: string;
+	/** Case cards only: which card of the case this is ("ratio", "details", "ratio-reverse", ...) */
+	caseCard?: string;
 }
 
 export interface PomodoroState {
@@ -84,6 +86,12 @@ export interface PluginSettings {
 	flashcardTag: string;
 	/** Treat ==highlights== as cloze deletions in every note */
 	highlightClozes: boolean;
+	/** Generate cards automatically from case-law fields */
+	caseCards: boolean;
+	/** Tag marking a case line or case note */
+	caseTag: string;
+	/** Also ask which case a ratio or set of facts belongs to */
+	reverseCaseCards: boolean;
 	/** Enable haptic feedback (vibrations) on supported mobile devices */
 	enableHaptics: boolean;
 	/** Use compact space-saving Pomodoro banner on mobile */
@@ -112,6 +120,9 @@ export const DEFAULT_SETTINGS: PluginSettings = {
 	multilineSeparator: "?",
 	flashcardTag: "#flashcard",
 	highlightClozes: false,
+	caseCards: true,
+	caseTag: "#case-law",
+	reverseCaseCards: true,
 	enableHaptics: true,
 	compactMobileTimer: true,
 };

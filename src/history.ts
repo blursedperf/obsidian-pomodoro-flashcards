@@ -45,8 +45,8 @@ export function remapRenamedCards(
  * After a note is re-parsed, give each new card that has no history the history of a card from the
  * previous parse of the same note that has disappeared (its question was edited). A disappeared card
  * matches when it had the same answer and started on the same line, then the same answer, then (for
- * cloze cards) the same deletion group on the same line, then the same line. Each disappeared card
- * is used at most once. Updates `parsed` and `metadata` in place.
+ * cloze and case cards) the same kind of card on the same line, then the same line. Each
+ * disappeared card is used at most once. Updates `parsed` and `metadata` in place.
  * Returns true if anything moved.
  */
 export function carryOverEditedCards(
@@ -63,8 +63,9 @@ export function carryOverEditedCards(
 	const passes: ((o: Flashcard, n: Flashcard) => boolean)[] = [
 		(o, n) => o.answer === n.answer && o.lineStart === n.lineStart,
 		(o, n) => o.answer === n.answer,
-		// Cloze cards from an edited paragraph: same deletion group on the same line
+		// Cloze or case cards from an edited paragraph or case: same kind of card on the same line
 		(o, n) => o.clozeGroup !== undefined && o.clozeGroup === n.clozeGroup && o.lineStart === n.lineStart,
+		(o, n) => o.caseCard !== undefined && o.caseCard === n.caseCard && o.lineStart === n.lineStart,
 		(o, n) => o.lineStart === n.lineStart,
 	];
 	for (const same of passes) {

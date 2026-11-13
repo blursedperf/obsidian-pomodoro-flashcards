@@ -4,7 +4,9 @@ import {
 	Notice,
 	Platform,
 	Plugin,
+	TAbstractFile,
 	TFile,
+	TFolder,
 	WorkspaceLeaf,
 	debounce,
 } from "obsidian";
@@ -21,6 +23,7 @@ import {
 } from "./types";
 import { calculateSM2, isCardDue } from "./srs";
 import { parseMarkdownCards } from "./parser";
+import { carryOverEditedCards, remapRenamedCards } from "./history";
 import { PomodoroTimer } from "./pomodoro";
 import {
 	FlashcardStudyView,
@@ -221,6 +224,16 @@ export default class PomodoroFlashcardsPlugin extends Plugin {
 			})
 		);
 		this.registerEvent(
+			this.app.vault.on("rename", (file: TAbstractFile, oldPath: string) => {
+				const isNote = file instanceof TFile && file.extension === "md";
+				if (!isNote && !(file instanceof TFolder)) return;
+				if (remapRenamedCards(this.cards, this.cardMetadata, oldPath, file.path)) {
+					void this.savePluginData();
+				}
+				debouncedRescan();
+			})
+		);
+		this.registerEvent(
 			this.app.vault.on("delete", (file) => {
 				if (file instanceof TFile && file.extension === "md") {
 					debouncedRescan();
@@ -261,6 +274,13 @@ export default class PomodoroFlashcardsPlugin extends Plugin {
 		const markdownFiles = this.app.vault.getMarkdownFiles();
 		const allCards: Flashcard[] = [];
 		const now = Date.now();
+		const previousByPath = new Map<string, Flashcard[]>();
+		for (const card of this.cards) {
+			const list = previousByPath.get(card.sourcePath);
+			if (list) list.push(card);
+			else previousByPath.set(card.sourcePath, [card]);
+		}
+		let historyMoved = false;
 
 		for (const file of markdownFiles) {
 			try {
@@ -272,6 +292,10 @@ export default class PomodoroFlashcardsPlugin extends Plugin {
 					this.cardMetadata,
 					now
 				);
+				const previous = previousByPath.get(file.path);
+				if (previous && carryOverEditedCards(previous, parsed, this.cardMetadata)) {
+					historyMoved = true;
+				}
 				if (parsed.length > 0) {
 					allCards.push(...parsed);
 				}
@@ -281,6 +305,9 @@ export default class PomodoroFlashcardsPlugin extends Plugin {
 		}
 
 		this.cards = allCards;
+		if (historyMoved) {
+			await this.savePluginData();
+		}
 	}
 
 	public getDecks(): string[] {

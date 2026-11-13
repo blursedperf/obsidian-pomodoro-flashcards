@@ -10,6 +10,8 @@ import {
 	parseMarkdownCards,
 } from "../src/parser.ts";
 import { DEFAULT_SETTINGS } from "../src/types.ts";
+import { carryOverEditedCards, remapRenamedCards } from "../src/history.ts";
+import { generateCardId } from "../src/srs.ts";
 
 const now = 1_700_000_000_000;
 
@@ -136,6 +138,93 @@ const pair = "a :: b";
 {
 	assert.equal(DEFAULT_SETTINGS.enableHaptics, true);
 	assert.equal(DEFAULT_SETTINGS.compactMobileTimer, true);
+}
+
+// 5. Lines that start with a tag are cards, not headings
+{
+	const cards = parseMarkdownCards(
+		[
+			"#torts Elements of negligence :: duty, breach, causation, damage",
+			"#flashcard Donoghue v Stevenson :: neighbour principle",
+			"## Causation #deck/Torts",
+			"But-for test :: would the harm have occurred without the breach?",
+		].join("\n"),
+		"Law/Torts.md",
+		DEFAULT_SETTINGS,
+		{},
+		now
+	);
+	assert.deepEqual(
+		cards.map((c) => [c.question, c.answer, c.deck]),
+		[
+			["#torts Elements of negligence", "duty, breach, causation, damage", "General"],
+			["Donoghue v Stevenson", "neighbour principle", "General"],
+			["But-for test", "would the harm have occurred without the breach?", "Torts"],
+		]
+	);
+}
+
+// 6. Inline fields and bracketed `::` never become cards
+{
+	const cards = parseMarkdownCards(
+		[
+			"held:: appeal allowed",
+			"- Ratio:: the neighbour principle",
+			"Donoghue v Stevenson #case-law [court:: HL] [year:: 1932] [ratio:: neighbour principle]",
+			"(court:: HCA) and `a :: b` in code",
+			"Mabo v Queensland (No 2) (1992) 175 CLR 1 ::: rejected terra nullius",
+			"Ratio :: the neighbour principle [court:: HL]",
+		].join("\n"),
+		"Cases/Torts.md",
+		DEFAULT_SETTINGS,
+		{},
+		now
+	);
+	assert.deepEqual(
+		cards.map((c) => [c.question, c.answer]),
+		[
+			["Mabo v Queensland (No 2) (1992) 175 CLR 1", "rejected terra nullius"],
+			["rejected terra nullius", "Mabo v Queensland (No 2) (1992) 175 CLR 1"],
+			["Ratio", "the neighbour principle [court:: HL]"],
+		]
+	);
+}
+
+// 7. Review history survives renaming a note or folder
+{
+	const md = "Duty of care :: neighbour principle\nBreach :: standard of care";
+	const reviewed = calculateSM2(createDefaultSRSMetadata(now), "good", now);
+	const metadata = { [generateCardId("Torts.md", "Duty of care")]: reviewed };
+	const cards = parseMarkdownCards(md, "Torts.md", DEFAULT_SETTINGS, metadata, now);
+
+	assert.equal(remapRenamedCards(cards, metadata, "Torts.md", "Law/Torts.md"), true);
+	assert.equal(cards[0].sourcePath, "Law/Torts.md");
+	assert.equal(remapRenamedCards(cards, metadata, "Law", "Year 1/Law"), true);
+	const reparsed = parseMarkdownCards(md, "Year 1/Law/Torts.md", DEFAULT_SETTINGS, metadata, now);
+	assert.deepEqual(reparsed[0].srs, reviewed);
+	assert.equal(reparsed[1].srs.repetition, 0);
+	assert.equal(Object.keys(metadata).length, 1);
+	assert.equal(remapRenamedCards(reparsed, metadata, "Other.md", "Elsewhere.md"), false);
+}
+
+// 8. Review history survives editing a question
+{
+	const before = "Duty of care :: neighbour principle\nBreach :: standard of care\nTerm ::: Definition";
+	const meta = (n: number) => ({ ...calculateSM2(createDefaultSRSMetadata(now), "good", now), efactor: n });
+	const metadata: Record<string, ReturnType<typeof meta>> = {};
+	const previous = parseMarkdownCards(before, "T.md", DEFAULT_SETTINGS, {}, now);
+	previous.forEach((c, i) => (metadata[c.id] = meta(2 + i / 10)));
+
+	// Edit the first question, swap the first two lines, and edit the bidirectional term
+	const after = "Breach :: standard of care\nDuty of care (Donoghue) :: neighbour principle\nTerm edited ::: Definition";
+	const parsed = parseMarkdownCards(after, "T.md", DEFAULT_SETTINGS, metadata, now);
+	assert.equal(carryOverEditedCards(previous, parsed, metadata), true);
+	assert.deepEqual(
+		parsed.map((c) => c.srs.efactor),
+		[2.1, 2, 2.2, 2.3]
+	);
+	assert.equal(Object.keys(metadata).length, 4);
+	assert.equal(carryOverEditedCards(parsed, parsed, metadata), false);
 }
 
 console.log("All SRS & Parser tests passed!");

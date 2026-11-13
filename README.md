@@ -19,6 +19,8 @@ Write flashcards naturally in any note without disrupting your writing flow:
   Mitochondria ::: Powerhouse of the cell
   ```
 
+  Separators need a space on both sides and must sit outside `[...]`, `(...)` and inline code, so inline fields such as `held:: appeal allowed` or `[court:: HL]` are never turned into cards. A line may start with a tag (`#torts Duty of care :: ...`).
+
 - **Multi-line cards** (`?` separator):
   ```markdown
   What is the time complexity of binary search?
@@ -33,6 +35,8 @@ Write flashcards naturally in any note without disrupting your writing flow:
   ```
 
 - **Flexible deck organization**: Organize cards into decks using frontmatter (`deck: Biology`), heading tags (`## Genetics #deck/Genetics`), or inline tags (`#deck/Algorithms`).
+
+- **History that follows your notes**: Review history is kept when you rename or move a note or folder, and when you edit a card's question.
 
 - **Quick-create modal**: Capture cards on the fly via the command palette, ribbon button, or selected note text (**Create flashcard from selected text**).
 

@@ -9,6 +9,50 @@ export interface RawParsedCard {
 	lineEnd: number;
 }
 
+/** A Markdown ATX heading (`# Title` … `###### Title`), as opposed to a line that starts with a `#tag`. */
+const HEADING_REGEX = /^#{1,6}(?:\s|$)/;
+
+export function isHeadingLine(trimmed: string): boolean {
+	return HEADING_REGEX.test(trimmed);
+}
+
+/**
+ * Find card separators in a line. A separator only counts when it stands on its own, with whitespace
+ * on both sides (`Question :: Answer`), and sits outside `[...]`, `(...)` and inline code. This keeps
+ * inline fields (`held:: appeal allowed`, `[court:: HL]`) and other `::` text from becoming cards.
+ * Returns the indexes of every standalone occurrence.
+ */
+export function findSeparators(text: string, sep: string): number[] {
+	const found: number[] = [];
+	if (!sep) return found;
+	let depth = 0;
+	let inCode = false;
+	for (let i = 0; i < text.length; i++) {
+		const ch = text[i];
+		if (ch === "`") {
+			inCode = !inCode;
+			continue;
+		}
+		if (inCode) continue;
+		if (ch === "[" || ch === "(") {
+			depth++;
+			continue;
+		}
+		if ((ch === "]" || ch === ")") && depth > 0) {
+			depth--;
+			continue;
+		}
+		if (depth > 0 || !text.startsWith(sep, i)) continue;
+		const before = text[i - 1];
+		const after = text[i + sep.length];
+		if (before !== undefined && /\s/.test(before) && after !== undefined && /\s/.test(after)) {
+			found.push(i);
+			i += sep.length - 1;
+		}
+	}
+	return found;
+}
+
 /**
  * Extract deck name from YAML frontmatter or inline tags if present.
  */
@@ -106,8 +150,9 @@ export function parseMarkdownCards(
 			continue;
 		}
 
-		// Track deck overrides on headings (e.g. "## Cellular Biology #deck/Biology")
-		if (trimmed.startsWith("#")) {
+		// Track deck overrides on headings (e.g. "## Cellular Biology #deck/Biology").
+		// Lines that merely start with a tag ("#torts Duty :: ...") are not headings.
+		if (isHeadingLine(trimmed)) {
 			const { deckOverride } = extractInlineDeckAndCleanTags(
 				trimmed,
 				flashcardTag
@@ -152,7 +197,7 @@ export function parseMarkdownCards(
 					i < lines.length &&
 					lines[i].trim() !== "" &&
 					!/^Q:\s+/i.test(lines[i].trim()) &&
-					!lines[i].trim().startsWith("#")
+					!isHeadingLine(lines[i].trim())
 				) {
 					aLines.push(lines[i]);
 					i++;
@@ -179,41 +224,40 @@ export function parseMarkdownCards(
 		}
 
 		// 2. Check bidirectional single-line separator (:::)
-		if (bidiSep && trimmed.includes(bidiSep)) {
-			const parts = trimmed.split(bidiSep);
-			if (parts.length === 2) {
-				const rawLeft = parts[0].replace(/^[-*+]\s+/, "").trim();
-				const rawRight = parts[1].trim();
-				const { cleaned: leftClean, deckOverride: d1 } =
-					extractInlineDeckAndCleanTags(rawLeft, flashcardTag);
-				const { cleaned: rightClean, deckOverride: d2 } =
-					extractInlineDeckAndCleanTags(rawRight, flashcardTag);
-				const cardDeck = d2 || d1 || currentDeck;
+		const bidiAt = findSeparators(trimmed, bidiSep);
+		if (bidiAt.length === 1) {
+			const rawLeft = trimmed.slice(0, bidiAt[0]).replace(/^[-*+]\s+/, "").trim();
+			const rawRight = trimmed.slice(bidiAt[0] + bidiSep.length).trim();
+			const { cleaned: leftClean, deckOverride: d1 } =
+				extractInlineDeckAndCleanTags(rawLeft, flashcardTag);
+			const { cleaned: rightClean, deckOverride: d2 } =
+				extractInlineDeckAndCleanTags(rawRight, flashcardTag);
+			const cardDeck = d2 || d1 || currentDeck;
 
-				if (leftClean && rightClean) {
-					rawCards.push({
-						question: leftClean,
-						answer: rightClean,
-						deck: cardDeck,
-						lineStart: i,
-						lineEnd: i,
-					});
-					rawCards.push({
-						question: rightClean,
-						answer: leftClean,
-						deck: cardDeck,
-						lineStart: i,
-						lineEnd: i,
-					});
-					i++;
-					continue;
-				}
+			if (leftClean && rightClean) {
+				rawCards.push({
+					question: leftClean,
+					answer: rightClean,
+					deck: cardDeck,
+					lineStart: i,
+					lineEnd: i,
+				});
+				rawCards.push({
+					question: rightClean,
+					answer: leftClean,
+					deck: cardDeck,
+					lineStart: i,
+					lineEnd: i,
+				});
+				i++;
+				continue;
 			}
 		}
 
 		// 3. Check standard single-line separator (::)
-		if (inlineSep && trimmed.includes(inlineSep)) {
-			const sepIndex = trimmed.indexOf(inlineSep);
+		const inlineAt = findSeparators(trimmed, inlineSep);
+		if (inlineAt.length > 0) {
+			const sepIndex = inlineAt[0];
 			const rawQ = trimmed.slice(0, sepIndex).replace(/^[-*+]\s+/, "").trim();
 			const rawA = trimmed.slice(sepIndex + inlineSep.length).trim();
 			const { cleaned: cleanQ, deckOverride: d1 } =
@@ -241,7 +285,7 @@ export function parseMarkdownCards(
 			while (
 				qStart > contentStartLine &&
 				lines[qStart - 1].trim() !== "" &&
-				!lines[qStart - 1].trim().startsWith("#")
+				!isHeadingLine(lines[qStart - 1].trim())
 			) {
 				qStart--;
 			}

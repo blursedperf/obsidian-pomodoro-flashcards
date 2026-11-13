@@ -94,6 +94,8 @@
 	display: flex;
 	align-items: center;
 	gap: 6px;
+	flex-wrap: nowrap;
+	white-space: nowrap;
 }
 
 .pomo-fc-phase-badge {
@@ -356,6 +358,8 @@ button.pomo-fc-btn.pomo-fc-btn-primary {
 	border-color: var(--interactive-accent);
 }
 
+/* Content is centred with auto margins rather than justify-content: centre, which pushed the top of
+   a long question/answer above the scroll area where it could not be scrolled to. */
 .pomo-fc-card-body {
 	flex: 1;
 	min-height: 0;
@@ -363,9 +367,16 @@ button.pomo-fc-btn.pomo-fc-btn-primary {
 	-webkit-overflow-scrolling: touch;
 	display: flex;
 	flex-direction: column;
-	justify-content: center;
 	padding: 8px 4px;
 	gap: 12px;
+}
+
+.pomo-fc-card-body > :first-child {
+	margin-top: auto;
+}
+
+.pomo-fc-card-body > :last-child {
+	margin-bottom: auto;
 }
 
 .pomo-fc-card-section {
@@ -571,14 +582,13 @@ button.pomo-fc-btn.pomo-fc-btn-primary {
 	overflow: hidden;
 }
 
+/* Desktop: a plain title like other Obsidian dialogs. Phones turn it into a Cancel / title / Save bar. */
 .pomo-fc-modal-header {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	padding: 12px 18px;
-	border-bottom: 1px solid var(--background-modifier-border);
+	padding: 4px 18px 10px;
 	flex-shrink: 0;
-	background-color: var(--background-secondary-alt, var(--background-secondary));
 }
 
 .pomo-fc-modal-title {
@@ -658,8 +668,9 @@ button.pomo-fc-btn.pomo-fc-btn-primary {
 	flex-shrink: 0;
 }
 
+/* Target note and deck rows are standard setting rows: give the first one room below the toggle. */
 .pomo-fc-modal-meta-drawer {
-	padding: 0 10px 10px 10px;
+	padding: 8px 12px 4px;
 	border-top: 1px solid var(--background-modifier-border);
 }
 
@@ -715,10 +726,27 @@ button.pomo-fc-btn.pomo-fc-btn-primary {
    7. Mobile & Touch Ergonomics
    -------------------------------------------------------------------------- */
 
+/* Bottom padding clears Obsidian's floating navigation bar (--view-bottom-spacing covers the bar and
+   the safe area), which otherwise covered the Show answer and rating buttons on phones. */
 .is-mobile .pomo-fc-view-root {
-	padding: 8px 10px calc(14px + env(safe-area-inset-bottom, 0px)) 10px;
+	padding: 8px 10px calc(12px + var(--view-bottom-spacing, env(safe-area-inset-bottom, 0px))) 10px;
 	gap: 8px;
 	overflow: hidden;
+}
+
+/* Phones: the screen is too short for the banner, toolbar and a revealed answer at once, which left
+   the question and answer in a few lines of inner scroll. Let the whole view scroll instead and the
+   card grow with its content. */
+.is-phone .pomo-fc-view-root {
+	overflow-y: auto;
+	-webkit-overflow-scrolling: touch;
+}
+
+.is-phone .pomo-fc-stage,
+.is-phone .pomo-fc-card,
+.is-phone .pomo-fc-card-body {
+	flex: 1 0 auto;
+	overflow: visible;
 }
 
 .is-mobile .pomo-fc-banner {
@@ -795,7 +823,10 @@ button.pomo-fc-btn.pomo-fc-btn-primary {
 	transform: none;
 }
 
-.is-mobile .modal-container .modal.pomo-fc-modal-dialog .modal-close-button {
+/* The dialog has its own Cancel / Save bar; hide Obsidian's close control and empty header
+   (.modal-header-button in Obsidian 1.15, .modal-close-button before). */
+.is-mobile .modal-container .modal.pomo-fc-modal-dialog :is(.modal-close-button, .modal-header-button),
+.is-mobile .modal-container .modal.pomo-fc-modal-dialog > .modal-header:not(:has(*:not(:empty))) {
 	display: none;
 }
 
@@ -897,6 +928,28 @@ button.pomo-fc-btn.pomo-fc-btn-primary {
    -------------------------------------------------------------------------- */
 
 @media (max-width: 600px) {
+	/* Banner: timer on the first row, controls on their own full-width row */
+	.pomo-fc-banner-main-row {
+		flex-wrap: wrap;
+	}
+
+	.pomo-fc-banner-controls {
+		width: 100%;
+	}
+
+	.pomo-fc-banner-controls .pomo-fc-btn:not(.pomo-fc-banner-toggle-btn) {
+		flex: 1;
+	}
+
+	/* Toolbar: the two selects share a row, the actions share the next */
+	.pomo-fc-toolbar-group {
+		width: 100%;
+	}
+
+	.pomo-fc-actions-group .pomo-fc-btn {
+		flex: 1;
+	}
+
 	.pomo-fc-rating-grid {
 		grid-template-columns: repeat(2, 1fr);
 		gap: 6px;

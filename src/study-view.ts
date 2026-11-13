@@ -10,6 +10,7 @@ import PomodoroFlashcardsPlugin from "./main";
 import { Flashcard, PomodoroPhase, PomodoroState, Rating } from "./types";
 import { isCardDue, previewIntervals } from "./srs";
 import { PomodoroTimer } from "./pomodoro";
+import { makeOfflineMarkdown } from "./offline";
 import { CreateFlashcardModal } from "./create-card-modal";
 
 export const VIEW_TYPE_POMODORO_FLASHCARDS = "pomodoro-flashcards-study-view";
@@ -641,7 +642,7 @@ export class FlashcardStudyView extends ItemView {
 		});
 		void MarkdownRenderer.render(
 			this.app,
-			card.question,
+			makeOfflineMarkdown(card.question),
 			questionContent,
 			card.sourcePath,
 			this
@@ -689,7 +690,7 @@ export class FlashcardStudyView extends ItemView {
 			});
 			void MarkdownRenderer.render(
 				this.app,
-				card.answer,
+				makeOfflineMarkdown(card.answer),
 				answerContent,
 				card.sourcePath,
 				this

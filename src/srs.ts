@@ -135,6 +135,23 @@ export function isCardDue(
 }
 
 /**
+ * Count due cards and find when the count next changes (the earliest future due date), so callers
+ * can reuse the count until then instead of rescanning every card on every timer tick.
+ */
+export function countDueCards(
+	cards: readonly { srs: SRSMetadata }[],
+	now: number = Date.now()
+): { count: number; nextChangeAt: number } {
+	let count = 0;
+	let nextChangeAt = Infinity;
+	for (const card of cards) {
+		if (card.srs.dueDate <= now) count++;
+		else if (card.srs.dueDate < nextChangeAt) nextChangeAt = card.srs.dueDate;
+	}
+	return { count, nextChangeAt };
+}
+
+/**
  * Generate a stable, deterministic hash ID from source path and question text.
  */
 export function generateCardId(sourcePath: string, question: string): string {

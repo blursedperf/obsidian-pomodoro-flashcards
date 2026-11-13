@@ -21,7 +21,8 @@ import {
 	SRSMetadata,
 	StudyStats,
 } from "./types";
-import { calculateSM2, isCardDue } from "./srs";
+import { calculateSM2, countDueCards } from "./srs";
+import { renamedPath } from "./history";
 import { parseMarkdownCards } from "./parser";
 import { carryOverEditedCards, remapRenamedCards } from "./history";
 import { maxClozeNumber, nextClozeNumber } from "./cloze";
@@ -33,11 +34,31 @@ import {
 import { CreateFlashcardModal } from "./create-card-modal";
 import { PomodoroFlashcardsSettingTab } from "./settings";
 
+/** Whether a re-parse produced the same cards (same IDs, text and position) as before. */
+function sameCards(a: Flashcard[] | undefined, b: Flashcard[]): boolean {
+	const before = a ?? [];
+	if (before.length !== b.length) return false;
+	return before.every(
+		(c, i) =>
+			c.id === b[i].id &&
+			c.answer === b[i].answer &&
+			c.deck === b[i].deck &&
+			c.lineStart === b[i].lineStart &&
+			c.lineEnd === b[i].lineEnd
+	);
+}
+
 export default class PomodoroFlashcardsPlugin extends Plugin {
 	public settings: PluginSettings = { ...DEFAULT_SETTINGS };
 	public cardMetadata: Record<string, SRSMetadata> = {};
 	public stats: StudyStats = { ...DEFAULT_STATS };
 	public cards: Flashcard[] = [];
+	/** Parsed cards per note, so an edit only re-parses the note that changed. */
+	private cardsByPath = new Map<string, Flashcard[]>();
+	/** Notes waiting to be re-parsed after edits settle. */
+	private pendingPaths = new Set<string>();
+	/** Cached due count, valid until a card falls due or the cards change. */
+	private dueCache: { count: number; validUntil: number } | null = null;
 	public pomodoro!: PomodoroTimer;
 
 	private statusBarEl: HTMLElement | null = null;
@@ -212,28 +233,21 @@ export default class PomodoroFlashcardsPlugin extends Plugin {
 			this.updateStatusBar(this.pomodoro.getState());
 		});
 
-		const debouncedRescan = debounce(
-			async () => {
-				await this.scanVaultCards();
-				this.refreshStudyViews();
-				this.updateStatusBar(this.pomodoro.getState());
-			},
-			1000,
-			true
-		);
+		// Re-parse only the notes that changed, once edits settle. Every changed path is kept, so
+		// several notes changing together (sync, link updates after a rename) are all picked up.
+		const queue = (path: string) => {
+			this.pendingPaths.add(path);
+			this.flushPending();
+		};
 
 		this.registerEvent(
 			this.app.vault.on("modify", (file) => {
-				if (file instanceof TFile && file.extension === "md") {
-					debouncedRescan();
-				}
+				if (file instanceof TFile && file.extension === "md") queue(file.path);
 			})
 		);
 		this.registerEvent(
 			this.app.vault.on("create", (file) => {
-				if (file instanceof TFile && file.extension === "md") {
-					debouncedRescan();
-				}
+				if (file instanceof TFile && file.extension === "md") queue(file.path);
 			})
 		);
 		this.registerEvent(
@@ -243,19 +257,33 @@ export default class PomodoroFlashcardsPlugin extends Plugin {
 				if (remapRenamedCards(this.cards, this.cardMetadata, oldPath, file.path)) {
 					void this.savePluginData();
 				}
-				debouncedRescan();
+				// Move indexed notes (one note, or every note under a folder) to their new paths
+				for (const [path, cards] of [...this.cardsByPath]) {
+					const target = renamedPath(path, oldPath, file.path);
+					if (target === null) continue;
+					this.cardsByPath.delete(path);
+					this.cardsByPath.set(target, cards);
+					if (this.pendingPaths.delete(path)) this.pendingPaths.add(target);
+				}
+				if (isNote) queue(file.path);
+				this.cardsChanged();
 			})
 		);
 		this.registerEvent(
 			this.app.vault.on("delete", (file) => {
-				if (file instanceof TFile && file.extension === "md") {
-					debouncedRescan();
+				if (!(file instanceof TFile) || file.extension !== "md") return;
+				this.pendingPaths.delete(file.path);
+				if (this.cardsByPath.delete(file.path)) {
+					this.cardsChanged();
+					this.refreshStudyViews();
 				}
 			})
 		);
 	}
 
 	onunload(): void {
+		this.flushPending.cancel();
+		this.requestFullRescan.cancel();
 		if (this.unsubscribeStatusBar) {
 			this.unsubscribeStatusBar();
 			this.unsubscribeStatusBar = null;
@@ -305,44 +333,97 @@ export default class PomodoroFlashcardsPlugin extends Plugin {
 		await workspace.revealLeaf(leaf);
 	}
 
+	private flushPending = debounce(
+		async () => {
+			await this.reindexPendingFiles();
+		},
+		1000,
+		true
+	);
+
+	/** Re-parse the whole vault once settings stop changing (text settings change per keystroke). */
+	public requestFullRescan = debounce(
+		async () => {
+			await this.scanVaultCards();
+			this.refreshStudyViews();
+		},
+		800,
+		true
+	);
+
+	/** Parse every note in the vault (on load, on request, and when parsing settings change). */
 	public async scanVaultCards(): Promise<void> {
-		const markdownFiles = this.app.vault.getMarkdownFiles();
-		const allCards: Flashcard[] = [];
 		const now = Date.now();
-		const previousByPath = new Map<string, Flashcard[]>();
-		for (const card of this.cards) {
-			const list = previousByPath.get(card.sourcePath);
-			if (list) list.push(card);
-			else previousByPath.set(card.sourcePath, [card]);
-		}
+		const next = new Map<string, Flashcard[]>();
 		let historyMoved = false;
+		this.pendingPaths.clear();
 
-		for (const file of markdownFiles) {
-			try {
-				const content = await this.app.vault.cachedRead(file);
-				const parsed = parseMarkdownCards(
-					content,
-					file.path,
-					this.settings,
-					this.cardMetadata,
-					now
-				);
-				const previous = previousByPath.get(file.path);
-				if (previous && carryOverEditedCards(previous, parsed, this.cardMetadata)) {
-					historyMoved = true;
-				}
-				if (parsed.length > 0) {
-					allCards.push(...parsed);
-				}
-			} catch {
-				// Skip unreadable files
-			}
+		for (const file of this.app.vault.getMarkdownFiles()) {
+			const result = await this.parseFile(file, now);
+			if (!result) continue;
+			if (result.historyMoved) historyMoved = true;
+			if (result.cards.length > 0) next.set(file.path, result.cards);
 		}
 
-		this.cards = allCards;
+		this.cardsByPath = next;
+		this.cardsChanged();
 		if (historyMoved) {
 			await this.savePluginData();
 		}
+	}
+
+	/** Re-parse the notes queued by vault events, then refresh views if anything changed. */
+	private async reindexPendingFiles(): Promise<void> {
+		const paths = [...this.pendingPaths];
+		this.pendingPaths.clear();
+		const now = Date.now();
+		let changed = false;
+		let historyMoved = false;
+
+		for (const path of paths) {
+			const file = this.app.vault.getFileByPath(path);
+			const result = file ? await this.parseFile(file, now) : null;
+			if (!result) {
+				changed = this.cardsByPath.delete(path) || changed;
+				continue;
+			}
+			if (result.historyMoved) historyMoved = true;
+			// Keep the existing card objects when nothing changed, so views and ratings keep
+			// pointing at the cards in the index.
+			if (!result.historyMoved && sameCards(this.cardsByPath.get(path), result.cards)) continue;
+			if (result.cards.length > 0) this.cardsByPath.set(path, result.cards);
+			else this.cardsByPath.delete(path);
+			changed = true;
+		}
+
+		if (historyMoved) await this.savePluginData();
+		if (changed) {
+			this.cardsChanged();
+			this.refreshStudyViews();
+		}
+	}
+
+	/** Read and parse one note, carrying review history over from its previous parse. */
+	private async parseFile(
+		file: TFile,
+		now: number
+	): Promise<{ cards: Flashcard[]; historyMoved: boolean } | null> {
+		try {
+			const content = await this.app.vault.cachedRead(file);
+			const cards = parseMarkdownCards(content, file.path, this.settings, this.cardMetadata, now);
+			const previous = this.cardsByPath.get(file.path);
+			const historyMoved = previous ? carryOverEditedCards(previous, cards, this.cardMetadata) : false;
+			return { cards, historyMoved };
+		} catch {
+			return null; // unreadable file
+		}
+	}
+
+	/** Rebuild the flat card list after the per-note index changed. */
+	private cardsChanged(): void {
+		this.cards = [...this.cardsByPath.values()].flat();
+		this.dueCache = null;
+		this.updateStatusBar(this.pomodoro.getState());
 	}
 
 	public getDecks(): string[] {
@@ -363,6 +444,7 @@ export default class PomodoroFlashcardsPlugin extends Plugin {
 		const updatedSRS = calculateSM2(card.srs, rating, Date.now());
 		card.srs = updatedSRS;
 		this.cardMetadata[cardId] = updatedSRS;
+		this.dueCache = null;
 
 		this.stats.totalCardsReviewed += 1;
 		this.updateDailyStreak();
@@ -414,7 +496,11 @@ export default class PomodoroFlashcardsPlugin extends Plugin {
 				: "☕";
 		const timeStr = PomodoroTimer.formatTime(state.remainingSeconds);
 		const now = Date.now();
-		const dueCount = this.cards.filter((c) => isCardDue(c.srs, now)).length;
+		if (!this.dueCache || now >= this.dueCache.validUntil) {
+			const { count, nextChangeAt } = countDueCards(this.cards, now);
+			this.dueCache = { count, validUntil: nextChangeAt };
+		}
+		const dueCount = this.dueCache.count;
 
 		this.statusBarEl.textContent = `${icon} ${timeStr} · 🗂️ ${dueCount} due`;
 		this.statusBarEl.toggleClass("is-running", state.isRunning);

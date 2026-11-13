@@ -11,7 +11,8 @@ import {
 } from "../src/parser.ts";
 import { DEFAULT_SETTINGS } from "../src/types.ts";
 import { carryOverEditedCards, remapRenamedCards } from "../src/history.ts";
-import { generateCardId } from "../src/srs.ts";
+import { countDueCards, generateCardId } from "../src/srs.ts";
+import { makeOfflineMarkdown } from "../src/offline.ts";
 import { buildClozeCards, findClozes, nextClozeNumber } from "../src/cloze.ts";
 import { caseFieldFor, cleanCaseName, parseFrontmatter, parseLineField } from "../src/cases.ts";
 
@@ -461,6 +462,43 @@ const pair = "a :: b";
 	const parsed = parseMarkdownCards("Donoghue v Stevenson #case-law [ratio:: neighbour] [year:: 1932]", "T.md", DEFAULT_SETTINGS, metadata, now);
 	assert.equal(carryOverEditedCards(previous, parsed, metadata), true);
 	assert.deepEqual(parsed.map((c) => [c.caseCard, c.srs.efactor]), previous.map((c, i) => [c.caseCard, 2 + i / 10]));
+}
+
+// 16. Due count and when it next changes
+{
+	const at = (dueDate: number) => ({ srs: { ...createDefaultSRSMetadata(now), dueDate } });
+	assert.deepEqual(countDueCards([at(now - 1), at(now), at(now + 500), at(now + 100)], now), {
+		count: 2,
+		nextChangeAt: now + 100,
+	});
+	assert.deepEqual(countDueCards([], now), { count: 0, nextChangeAt: Infinity });
+}
+
+// 17. Rendered cards never load remote content
+{
+	const out = makeOfflineMarkdown(
+		[
+			"![logo](https://example.com/a.png) ![](//cdn.example.com/b.gif) ![x](<https://e.com/c d.png> \"t\")",
+			"![local](attachments/diagram.png) ![note](Other%20note.md) ![[Duty of care]] ![[map.png|300]] ![[Case#Ratio]]",
+			"![x][ref]",
+			'<img src="https://x/y.png"> <IFRAME src="https://yt"></IFRAME> <span style="background:url(https://x)">t</span>',
+			'<a href="https://example.com">a link stays</a> <span class="pomo-fc-cloze-blank">[…]</span>',
+			"`![code](https://x.png)` stays",
+			"```",
+			"<img src=https://x>",
+			"```",
+			"after <video src=x>",
+		].join("\n")
+	);
+	const lines = out.split("\n");
+	assert.equal(lines[0], "*(remote image not loaded: logo)* *(remote image not loaded)* *(remote image not loaded: x)*");
+	assert.equal(lines[1], "![local](attachments/diagram.png) [note](Other%20note.md) [[Duty of care]] ![[map.png|300]] [[Case#Ratio]]");
+	assert.equal(lines[2], "[x][ref]");
+	assert.equal(lines[3], '&lt;img src="https://x/y.png"> &lt;IFRAME src="https://yt">&lt;/IFRAME> &lt;span style="background:url(https://x)">t</span>');
+	assert.equal(lines[4], '<a href="https://example.com">a link stays</a> <span class="pomo-fc-cloze-blank">[…]</span>');
+	assert.equal(lines[5], "`![code](https://x.png)` stays");
+	assert.equal(lines[7], "<img src=https://x>");
+	assert.equal(lines[9], "after &lt;video src=x>");
 }
 
 console.log("All SRS & Parser tests passed!");

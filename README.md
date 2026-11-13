@@ -75,6 +75,8 @@ Optimize recall with the proven SuperMemo-2 spaced repetition algorithm:
 ## Privacy & Security
 
 - **100% Local & Offline**: This plugin makes **zero network calls**. It does not contact external servers or load remote assets.
+- **Offline audit**: Every test run checks the source, built bundle and styles with `scripts/offline-audit.mjs`, which fails on any network API (`fetch`, `XMLHttpRequest`, WebSocket, `requestUrl`, workers, dynamic `import()`, ...), dynamic code (`eval`, `new Function`), raw HTML injection, or remote CSS (`@import`, non-`data:` `url()`).
+- **Remote content is never loaded**: Before a card is rendered, remote images (`![](https://...)`), raw HTML that loads resources (`<img>`, `<iframe>`, `<video>`, ...) and embeds of other notes are neutralised, so studying a card never makes a network request. Embeds of local images, audio, video and PDFs still show.
 - **Zero Telemetry**: No usage metrics, tracking pixels, crash analytics, or user identifiers.
 - **Vault-Confined Storage**: All flashcards live directly in your Markdown notes. Review intervals and statistics are stored locally in your vault's `.obsidian/plugins/pomodoro-flashcards/data.json`.
 - **Safe DOM Rendering**: Follows Obsidian security best practices with no `eval()` or unsanitized `innerHTML`. Card contents are rendered securely through Obsidian's native `MarkdownRenderer`.

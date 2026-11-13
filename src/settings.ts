@@ -23,6 +23,19 @@ const POMODORO_KEYS = new Set<SettingKey>([
 /** Settings that change how open study views render. */
 const VIEW_KEYS = new Set<SettingKey>(["lockCardsOnBreak", "compactMobileTimer"]);
 
+/** Settings that change how notes are parsed into cards: changing one re-parses the vault. */
+const PARSE_KEYS = new Set<SettingKey>([
+	"defaultDeck",
+	"inlineSeparator",
+	"bidirectionalSeparator",
+	"multilineSeparator",
+	"flashcardTag",
+	"highlightClozes",
+	"caseCards",
+	"caseTag",
+	"reverseCaseCards",
+]);
+
 /** Text settings that fall back to a default when cleared. */
 const TEXT_FALLBACKS: Partial<Record<SettingKey, string>> = {
 	defaultFlashcardNote: "Flashcards.md",
@@ -246,6 +259,9 @@ export class PomodoroFlashcardsSettingTab extends PluginSettingTab {
 		}
 		if (VIEW_KEYS.has(k)) {
 			this.plugin.refreshStudyViews();
+		}
+		if (PARSE_KEYS.has(k)) {
+			this.plugin.requestFullRescan();
 		}
 	}
 

@@ -315,7 +315,7 @@ export default class PomodoroFlashcardsPlugin extends Plugin {
 
 	public async activateStudyView(): Promise<void> {
 		const { workspace } = this.app;
-		let leaf: WorkspaceLeaf | null = null;
+		let leaf: WorkspaceLeaf;
 		const leaves = workspace.getLeavesOfType(VIEW_TYPE_POMODORO_FLASHCARDS);
 
 		if (leaves.length > 0) {

@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-pomodoro-flashcards",
-	"version": "1.0.4",
+	"version": "1.0.5",
 	"description": "Obsidian plugin for creating and displaying flashcards with an integrated Pomodoro timer",
 	"main": "main.js",
 	"scripts": {

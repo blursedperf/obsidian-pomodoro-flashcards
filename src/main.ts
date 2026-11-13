@@ -24,6 +24,7 @@ import {
 import { calculateSM2, isCardDue } from "./srs";
 import { parseMarkdownCards } from "./parser";
 import { carryOverEditedCards, remapRenamedCards } from "./history";
+import { maxClozeNumber, nextClozeNumber } from "./cloze";
 import { PomodoroTimer } from "./pomodoro";
 import {
 	FlashcardStudyView,
@@ -143,6 +144,18 @@ export default class PomodoroFlashcardsPlugin extends Plugin {
 		});
 
 		this.addCommand({
+			id: "wrap-selection-in-cloze",
+			name: "Wrap selection in cloze deletion (new card)",
+			editorCallback: (editor: Editor) => this.wrapSelectionInCloze(editor, false),
+		});
+
+		this.addCommand({
+			id: "wrap-selection-in-cloze-same-card",
+			name: "Wrap selection in cloze deletion (same card as the last cloze)",
+			editorCallback: (editor: Editor) => this.wrapSelectionInCloze(editor, true),
+		});
+
+		this.addCommand({
 			id: "toggle-pomodoro-timer",
 			name: "Start or pause Pomodoro timer",
 			callback: () => {
@@ -248,6 +261,28 @@ export default class PomodoroFlashcardsPlugin extends Plugin {
 			this.unsubscribeStatusBar = null;
 		}
 		this.pomodoro?.destroy();
+	}
+
+	/**
+	 * Wrap the selection in {{cN::...}}. A new card takes the next unused number in the paragraph;
+	 * "same card" reuses the highest number so the deletions are hidden together. With no selection,
+	 * inserts an empty cloze and puts the cursor inside it.
+	 */
+	private wrapSelectionInCloze(editor: Editor, sameCard: boolean): void {
+		const from = editor.getCursor("from");
+		let first = from.line;
+		let last = from.line;
+		while (first > 0 && editor.getLine(first - 1).trim() !== "") first--;
+		while (last < editor.lastLine() && editor.getLine(last + 1).trim() !== "") last++;
+		const paragraph = editor.getRange({ line: first, ch: 0 }, { line: last, ch: editor.getLine(last).length });
+
+		const n = sameCard ? Math.max(1, maxClozeNumber(paragraph)) : nextClozeNumber(paragraph);
+		const opening = `{{c${n}::`;
+		const selection = editor.getSelection();
+		editor.replaceSelection(`${opening}${selection}}}`);
+		if (!selection) {
+			editor.setCursor({ line: from.line, ch: from.ch + opening.length });
+		}
 	}
 
 	public async activateStudyView(): Promise<void> {

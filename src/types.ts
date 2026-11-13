@@ -32,6 +32,8 @@ export interface Flashcard {
 	lineEnd: number;
 	/** Spaced repetition scheduling metadata */
 	srs: SRSMetadata;
+	/** Cloze cards only: the deletion group this card hides ("c1", "h2", ...) */
+	clozeGroup?: string;
 }
 
 export interface PomodoroState {
@@ -80,6 +82,8 @@ export interface PluginSettings {
 	multilineSeparator: string;
 	/** Tag used to identify flashcard blocks or notes */
 	flashcardTag: string;
+	/** Treat ==highlights== as cloze deletions in every note */
+	highlightClozes: boolean;
 	/** Enable haptic feedback (vibrations) on supported mobile devices */
 	enableHaptics: boolean;
 	/** Use compact space-saving Pomodoro banner on mobile */
@@ -107,6 +111,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
 	bidirectionalSeparator: ":::",
 	multilineSeparator: "?",
 	flashcardTag: "#flashcard",
+	highlightClozes: false,
 	enableHaptics: true,
 	compactMobileTimer: true,
 };

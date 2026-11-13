@@ -1,5 +1,6 @@
 import { Flashcard, PluginSettings, SRSMetadata } from "./types";
 import { createDefaultSRSMetadata, generateCardId } from "./srs";
+import { buildClozeCards, CLOZE_TAG_REGEX, hasClozes } from "./cloze";
 
 export interface RawParsedCard {
 	question: string;
@@ -7,6 +8,7 @@ export interface RawParsedCard {
 	deck: string;
 	lineStart: number;
 	lineEnd: number;
+	clozeGroup?: string;
 }
 
 /** A Markdown ATX heading (`# Title` … `###### Title`), as opposed to a line that starts with a `#tag`. */
@@ -18,7 +20,7 @@ export function isHeadingLine(trimmed: string): boolean {
 
 /**
  * Find card separators in a line. A separator only counts when it stands on its own, with whitespace
- * on both sides (`Question :: Answer`), and sits outside `[...]`, `(...)` and inline code. This keeps
+ * on both sides (`Question :: Answer`), and sits outside `[...]`, `(...)`, `{...}` and inline code. This keeps
  * inline fields (`held:: appeal allowed`, `[court:: HL]`) and other `::` text from becoming cards.
  * Returns the indexes of every standalone occurrence.
  */
@@ -34,11 +36,11 @@ export function findSeparators(text: string, sep: string): number[] {
 			continue;
 		}
 		if (inCode) continue;
-		if (ch === "[" || ch === "(") {
+		if (ch === "[" || ch === "(" || ch === "{") {
 			depth++;
 			continue;
 		}
-		if ((ch === "]" || ch === ")") && depth > 0) {
+		if ((ch === "]" || ch === ")" || ch === "}") && depth > 0) {
 			depth--;
 			continue;
 		}
@@ -59,9 +61,11 @@ export function findSeparators(text: string, sep: string): number[] {
 function extractFileDeck(lines: string[], defaultDeck: string): {
 	deck: string;
 	contentStartLine: number;
+	highlightClozes: boolean;
 } {
 	let deck = defaultDeck;
 	let contentStartLine = 0;
+	let highlightClozes = false;
 
 	if (lines.length > 0 && lines[0].trim() === "---") {
 		for (let i = 1; i < lines.length; i++) {
@@ -74,10 +78,13 @@ function extractFileDeck(lines: string[], defaultDeck: string): {
 			if (deckMatch) {
 				deck = deckMatch[1].trim();
 			}
+			if (/^cloze\s*:\s*["']?true["']?$/i.test(trimmed)) {
+				highlightClozes = true;
+			}
 		}
 	}
 
-	return { deck, contentStartLine };
+	return { deck, contentStartLine, highlightClozes };
 }
 
 /**
@@ -120,7 +127,7 @@ export function parseMarkdownCards(
 	now: number = Date.now()
 ): Flashcard[] {
 	const lines = content.split(/\r?\n/);
-	const { deck: fileDeck, contentStartLine } = extractFileDeck(
+	const { deck: fileDeck, contentStartLine, highlightClozes: noteHighlightClozes } = extractFileDeck(
 		lines,
 		settings.defaultDeck
 	);
@@ -133,6 +140,16 @@ export function parseMarkdownCards(
 	const bidiSep = settings.bidirectionalSeparator || ":::";
 	const multiSep = settings.multilineSeparator || "?";
 	const flashcardTag = settings.flashcardTag || "#flashcard";
+	const isStandaloneDeckLine = (t: string) =>
+		(t.startsWith("#deck/") || t.startsWith("#flashcard/")) &&
+		extractInlineDeckAndCleanTags(t, flashcardTag).cleaned === "";
+	const isFence = (t: string) => t.startsWith("```") || t.startsWith("~~~");
+	/** Lines that make a paragraph a basic card, which takes precedence over clozes. */
+	const isBasicCardLine = (t: string) =>
+		/^[QA]:\s+/i.test(t) ||
+		t === multiSep ||
+		findSeparators(t, bidiSep).length > 0 ||
+		findSeparators(t, inlineSep).length > 0;
 
 	let i = contentStartLine;
 	while (i < lines.length) {
@@ -173,6 +190,50 @@ export function parseMarkdownCards(
 			if (deckOverride) {
 				currentDeck = deckOverride;
 				i++;
+				continue;
+			}
+		}
+
+		// 0. Cloze paragraph: consecutive non-blank lines with {{c1::...}} or ==highlight== deletions
+		const prevTrimmed = i > contentStartLine ? lines[i - 1].trim() : "";
+		const atParagraphStart =
+			i === contentStartLine ||
+			prevTrimmed === "" ||
+			isHeadingLine(prevTrimmed) ||
+			isFence(prevTrimmed) ||
+			isStandaloneDeckLine(prevTrimmed);
+		if (atParagraphStart) {
+			let end = i;
+			while (
+				end < lines.length &&
+				lines[end].trim() !== "" &&
+				!isHeadingLine(lines[end].trim()) &&
+				!isFence(lines[end].trim())
+			) {
+				end++;
+			}
+			const paraLines = lines.slice(i, end);
+			const paraText = paraLines.join("\n");
+			const useHighlights =
+				settings.highlightClozes || noteHighlightClozes || CLOZE_TAG_REGEX.test(paraText);
+			if (
+				hasClozes(paraText, useHighlights) &&
+				!paraLines.some((l) => isBasicCardLine(l.trim())) &&
+				(end >= lines.length || lines[end].trim() !== multiSep)
+			) {
+				const { cleaned, deckOverride } = extractInlineDeckAndCleanTags(paraText, flashcardTag);
+				const text = cleaned.replace(new RegExp(CLOZE_TAG_REGEX.source, "gi"), "$1").trim();
+				for (const cloze of buildClozeCards(text, useHighlights)) {
+					rawCards.push({
+						question: cloze.question,
+						answer: cloze.answer,
+						deck: deckOverride || currentDeck,
+						lineStart: i,
+						lineEnd: end - 1,
+						clozeGroup: cloze.group,
+					});
+				}
+				i = end;
 				continue;
 			}
 		}
@@ -343,6 +404,7 @@ export function parseMarkdownCards(
 			lineStart: raw.lineStart,
 			lineEnd: raw.lineEnd,
 			srs: existingSRS ? { ...existingSRS } : createDefaultSRSMetadata(now),
+			...(raw.clozeGroup ? { clozeGroup: raw.clozeGroup } : {}),
 		};
 	});
 }

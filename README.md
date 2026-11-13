@@ -34,6 +34,12 @@ Write flashcards naturally in any note without disrupting your writing flow:
   A: An optimization technique that stores the results of expensive function calls.
   ```
 
+- **Cloze deletions** (fill in the blank). Every deletion number in a paragraph becomes one card; deletions sharing a number are hidden together, and the rest of the paragraph stays visible as context:
+  ```markdown
+  Negligence requires {{c1::a duty of care}}, {{c2::breach}} and {{c3::damage::what kind of harm?}}.
+  ```
+  The text after a second `::` is a hint shown in the blank. Highlights can be clozes too (one card per `==highlight==`): turn on **Highlights are cloze deletions**, add `cloze: true` to a note's properties, or tag a paragraph `#cloze`. Use **Wrap selection in cloze deletion** to wrap selected text in the next free number, or **(same card as the last cloze)** to add it to the latest card.
+
 - **Flexible deck organization**: Organize cards into decks using frontmatter (`deck: Biology`), heading tags (`## Genetics #deck/Genetics`), or inline tags (`#deck/Algorithms`).
 
 - **History that follows your notes**: Review history is kept when you rename or move a note or folder, and when you edit a card's question.

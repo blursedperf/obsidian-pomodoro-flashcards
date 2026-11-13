@@ -12,6 +12,7 @@ import {
 import { DEFAULT_SETTINGS } from "../src/types.ts";
 import { carryOverEditedCards, remapRenamedCards } from "../src/history.ts";
 import { generateCardId } from "../src/srs.ts";
+import { buildClozeCards, findClozes, nextClozeNumber } from "../src/cloze.ts";
 
 const now = 1_700_000_000_000;
 
@@ -225,6 +226,106 @@ const pair = "a :: b";
 	);
 	assert.equal(Object.keys(metadata).length, 4);
 	assert.equal(carryOverEditedCards(parsed, parsed, metadata), false);
+}
+
+// 9. Cloze deletions: groups, hints, and rendering
+{
+	const B = (t: string) => `<span class="pomo-fc-cloze-blank">[${t}]</span>`;
+	const A = (t: string) => `<span class="pomo-fc-cloze-answer">${t}</span>`;
+	const cards = buildClozeCards(
+		"Negligence needs {{c1::duty}}, {{c1::breach}} and {{c2::damage::harm?}}.",
+		false
+	);
+	assert.deepEqual(cards, [
+		{
+			group: "c1",
+			question: `Negligence needs ${B("…")}, ${B("…")} and damage.`,
+			answer: `Negligence needs ${A("duty")}, ${A("breach")} and damage.`,
+		},
+		{
+			group: "c2",
+			question: `Negligence needs duty, breach and ${B("harm?")}.`,
+			answer: `Negligence needs duty, breach and ${A("damage")}.`,
+		},
+	]);
+
+	// Highlights only when enabled; one card each; never inside inline code or an Anki cloze
+	const text = "The ==neighbour principle== from {{c1::==Donoghue==}} and `==code==`";
+	assert.deepEqual(findClozes(text, false).map((d) => d.group), ["c1"]);
+	assert.deepEqual(findClozes(text, true).map((d) => [d.group, d.text]), [
+		["h1", "neighbour principle"],
+		["c1", "==Donoghue=="],
+	]);
+	assert.equal(buildClozeCards("No <b>{{c1::x::<i>}}</b>", false)[0].question.includes("[&lt;i&gt;]"), true);
+
+	assert.equal(nextClozeNumber("{{c1::a}} {{c3::b}}"), 4);
+	assert.equal(
+		parseMarkdownCards("Needs {{c1::duty :: the first element}}", "a.md", DEFAULT_SETTINGS, {}, now)[0].clozeGroup,
+		"c1"
+	);
+	assert.equal(nextClozeNumber("no clozes"), 1);
+}
+
+// 10. Cloze paragraphs in notes
+{
+	const md = [
+		"---",
+		"deck: Torts",
+		"---",
+		"## Negligence",
+		"The elements are:",
+		"- {{c1::duty of care}}",
+		"- {{c2::breach}} #deck/Elements",
+		"",
+		"Highlights ==ignored== here.",
+		"",
+		"#cloze s 5B: a person is not negligent unless the risk was ==foreseeable==",
+		"and ==not insignificant==.",
+		"",
+		"Ratio :: {{c1::neighbour}} principle",
+		"",
+		"```",
+		"{{c1::in code}}",
+		"```",
+	].join("\n");
+	const cards = parseMarkdownCards(md, "Law/Torts.md", DEFAULT_SETTINGS, {}, now);
+	assert.deepEqual(
+		cards.map((c) => [c.clozeGroup ?? null, c.deck, c.lineStart, c.lineEnd]),
+		[
+			["c1", "Elements", 4, 6],
+			["c2", "Elements", 4, 6],
+			["h1", "Torts", 10, 11],
+			["h2", "Torts", 10, 11],
+			[null, "Torts", 13, 13],
+		]
+	);
+	assert.ok(cards[0].question.startsWith("The elements are:\n- <span"));
+	assert.ok(!cards[2].question.includes("#cloze"));
+	assert.ok(cards[2].question.startsWith("s 5B: a person"));
+	assert.equal(cards[4].answer, "{{c1::neighbour}} principle");
+	assert.notEqual(cards[0].id, cards[1].id);
+
+	// The setting and the note property turn highlights on everywhere
+	const hl = "Highlights ==on== here.";
+	assert.equal(parseMarkdownCards(hl, "a.md", DEFAULT_SETTINGS, {}, now).length, 0);
+	assert.equal(parseMarkdownCards(hl, "a.md", { ...DEFAULT_SETTINGS, highlightClozes: true }, {}, now).length, 1);
+	assert.equal(parseMarkdownCards("---\ncloze: true\n---\n" + hl, "a.md", DEFAULT_SETTINGS, {}, now).length, 1);
+
+	// A multi-line ? card whose question contains a cloze stays a ? card
+	const multi = parseMarkdownCards("What does {{c1::s 5B}} require?\n?\nForeseeable risk", "a.md", DEFAULT_SETTINGS, {}, now);
+	assert.equal(multi.length, 1);
+	assert.equal(multi[0].clozeGroup, undefined);
+}
+
+// 11. Cloze history survives editing the paragraph
+{
+	const before = "Elements: {{c1::duty}}, {{c2::breach}}";
+	const previous = parseMarkdownCards(before, "T.md", DEFAULT_SETTINGS, {}, now);
+	const metadata: Record<string, ReturnType<typeof calculateSM2>> = {};
+	previous.forEach((c, i) => (metadata[c.id] = { ...calculateSM2(createDefaultSRSMetadata(now), "good", now), efactor: 2 + i / 10 }));
+	const parsed = parseMarkdownCards("The elements: {{c1::duty of care}}, {{c2::breach}}", "T.md", DEFAULT_SETTINGS, metadata, now);
+	assert.equal(carryOverEditedCards(previous, parsed, metadata), true);
+	assert.deepEqual(parsed.map((c) => c.srs.efactor), [2, 2.1]);
 }
 
 console.log("All SRS & Parser tests passed!");

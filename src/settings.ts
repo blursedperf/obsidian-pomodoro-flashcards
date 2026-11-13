@@ -174,6 +174,12 @@ export class PomodoroFlashcardsSettingTab extends PluginSettingTab {
 						},
 					},
 					{
+						name: "Highlights are cloze deletions",
+						desc: "Turn every ==highlight== into a cloze card in all notes. Without this, highlights are clozes only in notes with \"cloze: true\" in their properties or paragraphs tagged #cloze. {{c1::text}} clozes always work.",
+						aliases: ["cloze", "fill in the blank"],
+						control: { type: "toggle", key: "highlightClozes" },
+					},
+					{
 						name: "Multi-line separator",
 						desc: "Standalone line separating multi-line question and answer blocks",
 						control: {

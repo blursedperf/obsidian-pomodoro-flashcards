@@ -486,23 +486,36 @@ export default class PomodoroFlashcardsPlugin extends Plugin {
 		this.stats.lastStudyDate = today;
 	}
 
+	/** Re-render the status bar item, e.g. after its settings change. */
+	public refreshStatusBar(): void {
+		this.updateStatusBar(this.pomodoro.getState());
+	}
+
 	private updateStatusBar(state: PomodoroState): void {
 		if (!this.statusBarEl) return;
-		const icon =
-			state.phase === "work"
-				? state.isRunning
-					? "🍅"
-					: "⏸️"
-				: "☕";
-		const timeStr = PomodoroTimer.formatTime(state.remainingSeconds);
-		const now = Date.now();
-		if (!this.dueCache || now >= this.dueCache.validUntil) {
-			const { count, nextChangeAt } = countDueCards(this.cards, now);
-			this.dueCache = { count, validUntil: nextChangeAt };
-		}
-		const dueCount = this.dueCache.count;
+		const { statusBarTimer, statusBarDueCount } = this.settings;
+		this.statusBarEl.toggle(statusBarTimer || statusBarDueCount);
 
-		this.statusBarEl.textContent = `${icon} ${timeStr} · 🗂️ ${dueCount} due`;
+		const parts: string[] = [];
+		if (statusBarTimer) {
+			const icon =
+				state.phase === "work"
+					? state.isRunning
+						? "🍅"
+						: "⏸️"
+					: "☕";
+			parts.push(`${icon} ${PomodoroTimer.formatTime(state.remainingSeconds)}`);
+		}
+		if (statusBarDueCount) {
+			const now = Date.now();
+			if (!this.dueCache || now >= this.dueCache.validUntil) {
+				const { count, nextChangeAt } = countDueCards(this.cards, now);
+				this.dueCache = { count, validUntil: nextChangeAt };
+			}
+			parts.push(`🗂️ ${this.dueCache.count} due`);
+		}
+
+		this.statusBarEl.textContent = parts.join(" · ");
 		this.statusBarEl.toggleClass("is-running", state.isRunning);
 		this.statusBarEl.toggleClass("is-break", state.phase !== "work");
 	}

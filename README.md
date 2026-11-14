@@ -80,7 +80,7 @@ Optimize recall with the proven SuperMemo-2 spaced repetition algorithm:
 ### 3. Integrated Pomodoro Focus Experience
 - **Embedded circular timer**: SVG countdown ring right in the flashcard view.
 - **Break mode rest screen**: Enforces genuine cognitive recovery by pausing card reviews during short and long breaks (with an optional override button if you prefer to continue).
-- **Status bar indicator** (desktop & tablet): Real-time countdown and due card count (`🍅 25:00 · 🗂️ 12 due`). Left-click opens the study view; right-click toggles timer start/pause.
+- **Status bar indicator** (desktop & tablet): Real-time countdown and due card count (`🍅 25:00 · 🗂️ 12 due`). Left-click opens the study view; right-click toggles timer start/pause. The timer and due count can each be hidden under **Settings → Status bar**; turn off both to remove the indicator.
 - **Synthesized audio chimes**: Pure Web Audio API chimes signal phase transitions with zero external audio downloads or network access.
 
 ### 4. Mobile Ergonomics

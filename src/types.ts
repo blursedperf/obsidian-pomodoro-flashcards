@@ -96,6 +96,10 @@ export interface PluginSettings {
 	enableHaptics: boolean;
 	/** Use compact space-saving Pomodoro banner on mobile */
 	compactMobileTimer: boolean;
+	/** Show the Pomodoro countdown in the status bar (desktop and tablet) */
+	statusBarTimer: boolean;
+	/** Show the due card count in the status bar (desktop and tablet) */
+	statusBarDueCount: boolean;
 }
 
 export interface PluginData {
@@ -125,6 +129,8 @@ export const DEFAULT_SETTINGS: PluginSettings = {
 	reverseCaseCards: true,
 	enableHaptics: true,
 	compactMobileTimer: true,
+	statusBarTimer: true,
+	statusBarDueCount: true,
 };
 
 export const DEFAULT_STATS: StudyStats = {

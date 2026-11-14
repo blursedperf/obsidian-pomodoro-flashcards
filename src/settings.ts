@@ -23,6 +23,9 @@ const POMODORO_KEYS = new Set<SettingKey>([
 /** Settings that change how open study views render. */
 const VIEW_KEYS = new Set<SettingKey>(["lockCardsOnBreak", "compactMobileTimer"]);
 
+/** Settings that change what the status bar shows. */
+const STATUS_BAR_KEYS = new Set<SettingKey>(["statusBarTimer", "statusBarDueCount"]);
+
 /** Settings that change how notes are parsed into cards: changing one re-parses the vault. */
 const PARSE_KEYS = new Set<SettingKey>([
 	"defaultDeck",
@@ -129,6 +132,24 @@ export class PomodoroFlashcardsSettingTab extends PluginSettingTab {
 						desc: "Play a soft chime when a focus or break timer finishes",
 						aliases: ["chime", "audio"],
 						control: { type: "toggle", key: "playSound" },
+					},
+				],
+			},
+			{
+				type: "group",
+				heading: "Status bar",
+				items: [
+					{
+						name: "Show timer in status bar",
+						desc: "Show the Pomodoro countdown in the status bar (desktop and tablet)",
+						aliases: ["status bar", "indicator"],
+						control: { type: "toggle", key: "statusBarTimer" },
+					},
+					{
+						name: "Show due cards in status bar",
+						desc: "Show the number of due flashcards in the status bar. Turn off both options to hide the status bar item entirely.",
+						aliases: ["status bar", "indicator", "due count"],
+						control: { type: "toggle", key: "statusBarDueCount" },
 					},
 				],
 			},
@@ -259,6 +280,9 @@ export class PomodoroFlashcardsSettingTab extends PluginSettingTab {
 		}
 		if (VIEW_KEYS.has(k)) {
 			this.plugin.refreshStudyViews();
+		}
+		if (STATUS_BAR_KEYS.has(k)) {
+			this.plugin.refreshStatusBar();
 		}
 		if (PARSE_KEYS.has(k)) {
 			this.plugin.requestFullRescan();

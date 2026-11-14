@@ -47,6 +47,13 @@ export class CreateFlashcardModal extends Modal {
 		this.containerEl.addClass("pomo-fc-modal-container");
 		this.modalEl.addClass("pomo-fc-modal-dialog");
 
+		// Obsidian's own header holds only the close control here; mark it so mobile CSS can
+		// hide it without a :has() selector.
+		const obsidianHeader = this.modalEl.querySelector(":scope > .modal-header");
+		if (obsidianHeader && !obsidianHeader.textContent?.trim()) {
+			obsidianHeader.addClass("pomo-fc-empty-header");
+		}
+
 		const { contentEl } = this;
 		contentEl.empty();
 		contentEl.addClass("pomo-fc-modal");

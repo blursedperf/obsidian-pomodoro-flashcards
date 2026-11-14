@@ -826,7 +826,7 @@ button.pomo-fc-btn.pomo-fc-btn-primary {
 /* The dialog has its own Cancel / Save bar; hide Obsidian's close control and empty header
    (.modal-header-button in Obsidian 1.15, .modal-close-button before). */
 .is-mobile .modal-container .modal.pomo-fc-modal-dialog :is(.modal-close-button, .modal-header-button),
-.is-mobile .modal-container .modal.pomo-fc-modal-dialog > .modal-header:not(:has(*:not(:empty))) {
+.is-mobile .modal-container .modal.pomo-fc-modal-dialog > .modal-header.pomo-fc-empty-header {
 	display: none;
 }
 

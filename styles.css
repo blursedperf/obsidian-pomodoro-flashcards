@@ -128,8 +128,7 @@
 }
 
 .pomo-fc-banner-toggle-btn {
-	padding: 6px 10px;
-	font-size: 0.85rem;
+	padding: 6px 8px;
 	color: var(--text-muted);
 }
 
@@ -206,6 +205,24 @@
 	font-size: 0.85rem;
 	font-weight: 500;
 	transition: background-color 0.15s ease, transform 0.08s ease;
+}
+
+/* Buttons and pills that carry an Obsidian icon line the icon up with their label. */
+.pomo-fc-has-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+}
+
+.pomo-fc-btn-icon {
+	display: inline-flex;
+	--icon-size: var(--icon-s, 16px);
+	--icon-stroke: var(--icon-s-stroke-width, 2px);
+}
+
+.pomo-fc-phase-pill .pomo-fc-btn-icon {
+	--icon-size: var(--icon-xs, 14px);
 }
 
 .pomo-fc-btn:active {
@@ -348,6 +365,8 @@ button.pomo-fc-btn.pomo-fc-btn-primary {
 	cursor: pointer;
 	height: auto;
 	max-width: 180px;
+	/* A block box, so a long path ellipsises at its end instead of being centred and cut at both. */
+	display: block;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
@@ -542,9 +561,11 @@ button.pomo-fc-btn.pomo-fc-btn-primary {
 
 .pomo-fc-empty-icon,
 .pomo-fc-break-icon {
-	font-size: 2.6rem;
-	line-height: 1;
+	display: inline-flex;
 	margin-bottom: 4px;
+	color: var(--pomo-phase-accent, var(--text-accent));
+	--icon-size: 40px;
+	--icon-stroke: 1.5px;
 }
 
 .pomo-fc-break-desc {
@@ -597,12 +618,6 @@ button.pomo-fc-btn.pomo-fc-btn-primary {
 	font-weight: 600;
 }
 
-.pomo-fc-modal-header-actions {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-}
-
 .pomo-fc-header-save-btn {
 	padding: 4px 14px;
 	font-size: 0.85rem;
@@ -618,7 +633,8 @@ button.pomo-fc-btn.pomo-fc-btn-primary {
 	overflow-y: auto;
 	-webkit-overflow-scrolling: touch;
 	overscroll-behavior: contain;
-	padding: 14px 18px 24px 18px;
+	/* The dialog already pads its content; the 2px keeps focus rings clear of the scroll edge. */
+	padding: 2px 2px 4px;
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
@@ -655,17 +671,36 @@ button.pomo-fc-btn.pomo-fc-btn-primary {
 }
 
 .pomo-fc-modal-meta-summary {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
 	overflow: hidden;
-	text-overflow: ellipsis;
 	white-space: nowrap;
 	font-weight: 500;
 	text-align: left;
 }
 
+.pomo-fc-meta-icon {
+	display: inline-flex;
+	flex-shrink: 0;
+	--icon-size: var(--icon-xs, 14px);
+}
+
+.pomo-fc-meta-text {
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.pomo-fc-meta-text + .pomo-fc-meta-icon {
+	margin-inline-start: 8px;
+}
+
 .pomo-fc-modal-meta-chevron {
-	font-size: 0.75rem;
+	display: inline-flex;
 	margin-left: 8px;
 	flex-shrink: 0;
+	--icon-size: var(--icon-xs, 14px);
 }
 
 /* Target note and deck rows are standard setting rows: give the first one room below the toggle. */

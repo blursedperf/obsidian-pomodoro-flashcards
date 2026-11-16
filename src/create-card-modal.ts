@@ -1,4 +1,4 @@
-import { App, MarkdownView, Modal, Notice, Platform, Setting, TFile } from "obsidian";
+import { App, MarkdownView, Modal, Notice, Platform, Setting, TFile, setIcon } from "obsidian";
 import PomodoroFlashcardsPlugin from "./main";
 import { formatFlashcardMarkdown } from "./parser";
 import { PomodoroTimer } from "./pomodoro";
@@ -47,7 +47,12 @@ export class CreateFlashcardModal extends Modal {
 		this.containerEl.addClass("pomo-fc-modal-container");
 		this.modalEl.addClass("pomo-fc-modal-dialog");
 
-		// Obsidian's own header holds only the close control here; mark it so mobile CSS can
+		// Desktop uses Obsidian's own dialog title, so it lines up with every other dialog.
+		if (!Platform.isMobile) {
+			this.titleEl.setText("Create flashcard");
+		}
+
+		// On phones Obsidian's own header holds only the close control; mark it so mobile CSS can
 		// hide it without a :has() selector.
 		const obsidianHeader = this.modalEl.querySelector(":scope > .modal-header");
 		if (obsidianHeader && !obsidianHeader.textContent?.trim()) {
@@ -58,11 +63,11 @@ export class CreateFlashcardModal extends Modal {
 		contentEl.empty();
 		contentEl.addClass("pomo-fc-modal");
 
-		// 1. Pinned Modal Header Bar (remains visible even with mobile keyboard up)
-		const headerBar = contentEl.createDiv({ cls: "pomo-fc-modal-header" });
+		// 1. Phones: pinned Cancel / title / Save bar (stays visible with the keyboard up)
 		let headerSaveBtn: HTMLButtonElement | null = null;
 
 		if (Platform.isMobile) {
+			const headerBar = contentEl.createDiv({ cls: "pomo-fc-modal-header" });
 			const headerCancelBtn = headerBar.createEl("button", {
 				text: "Cancel",
 				cls: "pomo-fc-header-cancel-btn",
@@ -83,11 +88,6 @@ export class CreateFlashcardModal extends Modal {
 				attr: { type: "button", title: "Save flashcard" },
 			});
 			// The native close button is hidden on mobile via styles.css
-		} else {
-			headerBar.createEl("h3", {
-				text: "Create flashcard",
-				cls: "pomo-fc-modal-title",
-			});
 		}
 
 		// 2. Scrollable Form Body with dedicated keyboard scroll clearance
@@ -111,19 +111,22 @@ export class CreateFlashcardModal extends Modal {
 			cls: "pomo-fc-modal-meta-toggle",
 			attr: { type: "button", title: "Toggle deck and target file options" },
 		});
-		const metaSummary = metaToggleBtn.createSpan({
-			cls: "pomo-fc-modal-meta-summary",
-			text: `📁 Deck: ${this.deckName} · 📄 ${getTargetFileName()}`,
-		});
-		const metaChevron = metaToggleBtn.createSpan({
-			cls: "pomo-fc-modal-meta-chevron",
-			text: isMetaExpanded ? "▴" : "▾",
-		});
+		const metaSummary = metaToggleBtn.createSpan({ cls: "pomo-fc-modal-meta-summary" });
+		const renderSummary = () => {
+			metaSummary.empty();
+			setIcon(metaSummary.createSpan({ cls: "pomo-fc-meta-icon" }), "folder");
+			metaSummary.createSpan({ cls: "pomo-fc-meta-text", text: `Deck: ${this.deckName}` });
+			setIcon(metaSummary.createSpan({ cls: "pomo-fc-meta-icon" }), "file-text");
+			metaSummary.createSpan({ cls: "pomo-fc-meta-text", text: getTargetFileName() });
+		};
+		renderSummary();
+		const metaChevron = metaToggleBtn.createSpan({ cls: "pomo-fc-modal-meta-chevron" });
+		setIcon(metaChevron, isMetaExpanded ? "chevron-up" : "chevron-down");
 
 		metaToggleBtn.addEventListener("click", () => {
 			isMetaExpanded = !isMetaExpanded;
 			metaBox.toggleClass("is-collapsed", !isMetaExpanded);
-			metaChevron.setText(isMetaExpanded ? "▴" : "▾");
+			setIcon(metaChevron, isMetaExpanded ? "chevron-up" : "chevron-down");
 			if (Platform.isMobile) {
 				window.setTimeout(() => {
 					this.updateMobileLayout();
@@ -145,9 +148,7 @@ export class CreateFlashcardModal extends Modal {
 					.setValue(this.targetPath)
 					.onChange((val) => {
 						this.targetPath = val.trim();
-						metaSummary.setText(
-							`📁 Deck: ${this.deckName} · 📄 ${getTargetFileName()}`
-						);
+						renderSummary();
 					});
 			});
 
@@ -171,9 +172,7 @@ export class CreateFlashcardModal extends Modal {
 					if (deckInputEl) {
 						deckInputEl.value = val;
 					}
-					metaSummary.setText(
-						`📁 Deck: ${this.deckName} · 📄 ${getTargetFileName()}`
-					);
+					renderSummary();
 				});
 			});
 		}
@@ -185,9 +184,7 @@ export class CreateFlashcardModal extends Modal {
 				.setValue(this.deckName)
 				.onChange((val) => {
 					this.deckName = val.trim() || this.plugin.settings.defaultDeck;
-					metaSummary.setText(
-						`📁 Deck: ${this.deckName} · 📄 ${getTargetFileName()}`
-					);
+					renderSummary();
 				});
 		});
 

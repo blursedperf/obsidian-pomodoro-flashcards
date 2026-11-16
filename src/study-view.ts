@@ -5,11 +5,20 @@ import {
 	Platform,
 	TFile,
 	WorkspaceLeaf,
+	setIcon,
 } from "obsidian";
 import PomodoroFlashcardsPlugin from "./main";
 import { Flashcard, PomodoroPhase, PomodoroState, Rating } from "./types";
 import { isCardDue, previewIntervals } from "./srs";
 import { PomodoroTimer } from "./pomodoro";
+
+/** Fills a button with an Obsidian icon and an optional label, so controls match the app's own. */
+function setIconLabel(el: HTMLElement, icon: string, label?: string): void {
+	el.empty();
+	el.addClass("pomo-fc-has-icon");
+	setIcon(el.createSpan({ cls: "pomo-fc-btn-icon" }), icon);
+	if (label) el.createSpan({ cls: "pomo-fc-btn-label", text: label });
+}
 import { makeOfflineMarkdown } from "./offline";
 import { CreateFlashcardModal } from "./create-card-modal";
 
@@ -191,21 +200,21 @@ export class FlashcardStudyView extends ItemView {
 
 		const skipBtn = pomoControls.createEl("button", {
 			cls: "pomo-fc-btn",
-			text: "Skip ⏭",
 			attr: { title: "Skip to next Pomodoro phase", "aria-label": "Skip phase" },
 		});
+		setIconLabel(skipBtn, "skip-forward", "Skip");
 		skipBtn.addEventListener("click", () => {
 			this.plugin.pomodoro.skipPhase();
 		});
 
 		this.bannerToggleBtnEl = pomoControls.createEl("button", {
 			cls: "pomo-fc-btn pomo-fc-banner-toggle-btn",
-			text: this.isBannerExpanded ? "▴" : "▾",
 			attr: {
 				title: "Toggle timer options and statistics",
 				"aria-label": "Toggle timer options and statistics",
 			},
 		});
+		setIconLabel(this.bannerToggleBtnEl, this.isBannerExpanded ? "chevron-up" : "chevron-down");
 		this.bannerToggleBtnEl.addEventListener("click", () => {
 			this.toggleBannerDetails();
 		});
@@ -238,9 +247,9 @@ export class FlashcardStudyView extends ItemView {
 
 		const resetBtn = phasePills.createEl("button", {
 			cls: "pomo-fc-phase-pill pomo-fc-reset-pill",
-			text: "↺ Reset",
 			attr: { title: "Reset current phase timer" },
 		});
+		setIconLabel(resetBtn, "rotate-ccw", "Reset");
 		resetBtn.addEventListener("click", () => {
 			this.plugin.pomodoro.reset();
 		});
@@ -296,9 +305,9 @@ export class FlashcardStudyView extends ItemView {
 		});
 		const newCardBtn = actionsGroup.createEl("button", {
 			cls: "pomo-fc-btn pomo-fc-new-card-btn",
-			text: Platform.isMobile ? "+ Card" : "+ New card",
 			attr: { title: "Create new flashcard" },
 		});
+		setIconLabel(newCardBtn, "plus", Platform.isMobile ? "Card" : "New card");
 		newCardBtn.addEventListener("click", () => {
 			new CreateFlashcardModal(this.app, this.plugin, {
 				initialDeck:
@@ -311,12 +320,12 @@ export class FlashcardStudyView extends ItemView {
 
 		const rescanBtn = actionsGroup.createEl("button", {
 			cls: "pomo-fc-btn pomo-fc-rescan-btn",
-			text: Platform.isMobile ? "↻" : "↻ Rescan",
 			attr: {
 				title: "Rescan vault Markdown files for flashcards",
 				"aria-label": "Rescan vault",
 			},
 		});
+		setIconLabel(rescanBtn, "refresh-cw", Platform.isMobile ? undefined : "Rescan");
 		rescanBtn.addEventListener("click", () => {
 			void this.plugin.scanVaultCards().then(() => {
 				this.refreshFromVault();
@@ -339,7 +348,7 @@ export class FlashcardStudyView extends ItemView {
 			this.bannerEl.toggleClass("is-collapsed", !this.isBannerExpanded);
 		}
 		if (this.bannerToggleBtnEl) {
-			this.bannerToggleBtnEl.setText(this.isBannerExpanded ? "▴" : "▾");
+			setIconLabel(this.bannerToggleBtnEl, this.isBannerExpanded ? "chevron-up" : "chevron-down");
 			this.bannerToggleBtnEl.setAttribute(
 				"aria-label",
 				this.isBannerExpanded
@@ -469,7 +478,7 @@ export class FlashcardStudyView extends ItemView {
 		}
 
 		if (this.sessionStatsEl) {
-			this.sessionStatsEl.textContent = `Session: ${state.cardsReviewedInSession} cards reviewed · ${state.completedPomodoros} 🍅 completed · Streak: ${this.plugin.stats.dailyStreak}d`;
+			this.sessionStatsEl.textContent = `Session: ${state.cardsReviewedInSession} cards reviewed · ${state.completedPomodoros} Pomodoros completed · Streak: ${this.plugin.stats.dailyStreak}d`;
 		}
 	}
 
@@ -484,7 +493,7 @@ export class FlashcardStudyView extends ItemView {
 			const breakCard = this.cardStageEl.createDiv({
 				cls: "pomo-fc-card pomo-fc-break-card",
 			});
-			breakCard.createDiv({ cls: "pomo-fc-break-icon", text: "☕" });
+			setIcon(breakCard.createDiv({ cls: "pomo-fc-break-icon" }), "coffee");
 			breakCard.createEl("h2", {
 				text:
 					pomoState.phase === "long-break"
@@ -532,13 +541,13 @@ export class FlashcardStudyView extends ItemView {
 							.length;
 
 			if (totalInScope === 0) {
-				emptyCard.createDiv({ cls: "pomo-fc-empty-icon", text: "🗂️" });
+				setIcon(emptyCard.createDiv({ cls: "pomo-fc-empty-icon" }), "layers");
 				emptyCard.createEl("h3", { text: "No flashcards found" });
 				emptyCard.createEl("p", {
 					text: "Create flashcards using Question :: Answer syntax in any note, or click below to add your first card.",
 				});
 			} else {
-				emptyCard.createDiv({ cls: "pomo-fc-empty-icon", text: "🎉" });
+				setIcon(emptyCard.createDiv({ cls: "pomo-fc-empty-icon" }), "party-popper");
 				emptyCard.createEl("h3", {
 					text: "All caught up!",
 				});
